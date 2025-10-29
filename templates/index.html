@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aviation Weather</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✈️ Aviation Weather</h1>
+            <div class="header-info">
+                {% if last_update %}
+                <p class="last-update">Last Update: {{ last_update }}</p>
+                {% endif %}
+                <button id="refresh-btn" class="btn-refresh">🔄 Refresh</button>
+            </div>
+        </header>
+
+        <main>
+            {% if weather_data %}
+                {% for data in weather_data %}
+                <div class="airport-card">
+                    <div class="airport-header">
+                        <h2>{{ data.airport }}</h2>
+                    </div>
+
+                    {% if data.metar %}
+                    <div class="weather-section">
+                        <h3>METAR</h3>
+                        <div class="raw-text">{{ data.metar.rawOb or data.metar.raw_text or 'N/A' }}</div>
+                        
+                        {% if data.metar.wxDecoded %}
+                        <div class="weather-decoded">
+                            <strong>Conditions:</strong> {{ data.metar.wxDecoded }}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="weather-details">
+                            {% if data.metar.flightCategory %}
+                            <div class="detail-item highlight">
+                                <span class="label">Flight Category:</span>
+                                <span class="value flight-category-{{ data.metar.flightCategory|lower }}">
+                                    {{ data.metar.flightCategory }}
+                                </span>
+                            </div>
+                            {% endif %}
+                            
+                            {% if data.metar.temp %}
+                            <div class="detail-item">
+                                <span class="label">Temperature:</span>
+                                <span class="value">{{ (data.metar.temp * 9/5 + 32)|round(1) }}°F</span>
+                            </div>
+                            {% endif %}
+                            
+                            {% if data.metar.dewp %}
+                            <div class="detail-item">
+                                <span class="label">Dewpoint:</span>
+                                <span class="value">{{ (data.metar.dewp * 9/5 + 32)|round(1) }}°F</span>
+                            </div>
+                            {% endif %}
+                            
+                            {% if data.metar.wdir and data.metar.wspd %}
+                            <div class="detail-item">
+                                <span class="label">Wind:</span>
+                                <span class="value">{{ data.metar.wdir }}° at {{ data.metar.wspd }} kt
+                                {% if data.metar.wgst %} gusting {{ data.metar.wgst }} kt{% endif %}
+                                </span>
+                            </div>
+                            {% endif %}
+                            
+                            {% if data.metar.visib %}
+                            <div class="detail-item">
+                                <span class="label">Visibility:</span>
+                                <span class="value">{{ data.metar.visib }} SM</span>
+                            </div>
+                            {% endif %}
+                            
+                            {% if data.metar.altimInHg or data.metar.altim or data.metar.press %}
+                            <div class="detail-item">
+                                <span class="label">Altimeter:</span>
+                                <span class="value">
+                                    {% if data.metar.altimInHg %}
+                                        {{ data.metar.altimInHg|round(2) }} inHg
+                                    {% elif data.metar.altim %}
+                                        {% if data.metar.altim > 60 %}
+                                            {{ (data.metar.altim * 0.02953)|round(2) }} inHg
+                                        {% else %}
+                                            {{ data.metar.altim|round(2) }} inHg
+                                        {% endif %}
+                                    {% elif data.metar.press %}
+                                        {{ (data.metar.press * 0.02953)|round(2) }} inHg
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% endif %}
+                            
+                            {% if data.metar.obsTime %}
+                            <div class="detail-item">
+                                <span class="label">Observation Time (Local):</span>
+                                <span class="value">
+                                    {% if data.metar.obsTimeLocal %}
+                                        {{ data.metar.obsTimeLocal.local }}
+                                    {% else %}
+                                        {{ data.metar.obsTime }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if data.metar.cloudLayers and data.metar.cloudLayers|length > 0 %}
+                        <div class="cloud-layers">
+                            <h4>☁️ Cloud Layers</h4>
+                            <div class="cloud-grid">
+                                {% for layer in data.metar.cloudLayers %}
+                                <div class="cloud-layer-card">
+                                    <div class="cloud-cover {{ layer.cover|lower }}">
+                                        {{ layer.cover_text }}
+                                    </div>
+                                    {% if layer.coverage_detail %}
+                                    <div class="cloud-coverage">
+                                        {{ layer.coverage_detail }}
+                                    </div>
+                                    {% endif %}
+                                    {% if layer.altitude_agl %}
+                                    <div class="cloud-altitude">
+                                        📏 {{ layer.altitude_agl }}
+                                    </div>
+                                    {% endif %}
+                                    {% if layer.cloud_type %}
+                                    <div class="cloud-type">
+                                        <strong>{{ layer.cloud_type }}</strong>
+                                        {% if layer.cloud_type_code == 'CB' %}
+                                        <span class="warning-badge">⚠️ Convective</span>
+                                        {% elif layer.cloud_type_code == 'TCU' %}
+                                        <span class="caution-badge">⚡ Towering</span>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="weather-section">
+                        <p class="no-data">No METAR data available</p>
+                    </div>
+                    {% endif %}
+
+                    {% if data.taf %}
+                    <div class="weather-section">
+                        <h3>TAF (Terminal Aerodrome Forecast)</h3>
+                        <div class="raw-text">{{ data.taf.rawTAF or data.taf.raw_text or 'N/A' }}</div>
+                        
+                        {% if data.taf.issueTimeLocal %}
+                        <div class="taf-header">
+                            <strong>Issued:</strong> {{ data.taf.issueTimeLocal.local }}
+                            {% if data.taf.validTimeFromLocal and data.taf.validTimeToLocal %}
+                            <br><strong>Valid:</strong> {{ data.taf.validTimeFromLocal.local_short }} to {{ data.taf.validTimeToLocal.local_short }}
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        {% if data.taf.decodedForecasts and data.taf.decodedForecasts|length > 0 %}
+                        <div class="taf-forecasts">
+                            <h4>📅 Forecast Periods</h4>
+                            {% for forecast in data.taf.decodedForecasts %}
+                            <div class="forecast-period">
+                                <div class="forecast-header">
+                                    <span class="forecast-type">{{ forecast.type }}</span>
+                                    {% if forecast.valid_from and forecast.valid_to %}
+                                    <span class="forecast-time">{{ forecast.valid_from }} - {{ forecast.valid_to }}</span>
+                                    {% endif %}
+                                    {% if forecast.flight_category %}
+                                    <span class="flight-category-{{ forecast.flight_category|lower }}">
+                                        {{ forecast.flight_category }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% if forecast.summary %}
+                                <div class="forecast-summary">{{ forecast.summary }}</div>
+                                {% endif %}
+                                
+                                <div class="forecast-details">
+                                    {% if forecast.wind %}
+                                    <div class="forecast-item">
+                                        <strong>Wind:</strong> {{ forecast.wind }}
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if forecast.visibility %}
+                                    <div class="forecast-item">
+                                        <strong>Visibility:</strong> {{ forecast.visibility }}
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if forecast.weather %}
+                                    <div class="forecast-item">
+                                        <strong>Weather:</strong> {{ forecast.weather }}
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if forecast.clouds and forecast.clouds|length > 0 %}
+                                    <div class="forecast-item">
+                                        <strong>Clouds:</strong>
+                                        {% for cloud in forecast.clouds %}
+                                        <span class="cloud-summary">
+                                            {{ cloud.cover_text }}
+                                            {% if cloud.altitude_agl %}@ {{ cloud.altitude_agl }}{% endif %}
+                                            {% if cloud.cloud_type %}({{ cloud.cloud_type }}){% endif %}
+                                        </span>
+                                        {% if not loop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-airports">
+                    <p>No airports configured.</p>
+                    <p>Please configure airport codes in the add-on configuration.</p>
+                </div>
+            {% endif %}
+        </main>
+    </div>
+
+    <script>
+        document.getElementById('refresh-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('refresh-btn');
+            btn.disabled = true;
+            btn.textContent = '🔄 Updating...';
+            
+            try {
+                // Use relative path for Ingress compatibility
+                const response = await fetch('api/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                // Log response details for debugging
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+                
+                // Check content type
+                const contentType = response.headers.get('content-type');
+                console.log('Content-Type:', contentType);
+                
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text);
+                    alert('Server error: Expected JSON but got ' + contentType + '\n\nResponse body:\n' + text.substring(0, 200) + '\n\nCheck add-on logs for details.');
+                    btn.disabled = false;
+                    btn.textContent = '🔄 Refresh';
+                    return;
+                }
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (response.ok) {
+                    // Update is running in background, wait a moment then reload
+                    btn.textContent = '⏳ Fetching data...';
+                    setTimeout(() => {
+                        location.reload();
+                    }, 3000);  // Wait 3 seconds for background update to complete
+                } else {
+                    const errorMsg = data.message || 'Failed to update weather data';
+                    alert('Error: ' + errorMsg);
+                    console.error('Update failed:', data);
+                    btn.disabled = false;
+                    btn.textContent = '🔄 Refresh';
+                }
+            } catch (error) {
+                console.error('Error updating weather:', error);
+                alert('Network error: ' + error.message + '\n\nCheck browser console and add-on logs for details.');
+                btn.disabled = false;
+                btn.textContent = '🔄 Refresh';
+            }
+        });
+    </script>
+</body>
+</html>

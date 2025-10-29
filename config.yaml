@@ -1,0 +1,35 @@
+name: "Aviation Weather"
+description: "Provides aviation weather data (METAR, TAF) from aviationweather.gov API"
+version: "2.0.0"
+slug: "aviation_weather"
+init: false
+arch:
+  - aarch64
+  - amd64
+url: "https://github.com/MrEllisTechnologyTeacher/AviationWeatherHA"
+startup: application
+boot: auto
+ports:
+  8099/tcp: 8099
+ingress: true
+ingress_port: 8099
+ingress_entry: /
+panel_icon: mdi:airplane
+panel_title: "Aviation Weather"
+homeassistant_api: true
+image: "ghcr.io/mrellistechnologyteacher/aviationweatherha-{arch}"
+options:
+  airport_codes: []
+  update_interval: 30
+  include_taf: true
+  log_level: "info"
+  create_sensors: false
+  sensor_airport: "auto"
+schema:
+  airport_codes:
+    - str
+  update_interval: "int(5,120)"
+  include_taf: bool
+  log_level: "list(debug|info|warning|error)"
+  create_sensors: bool
+  sensor_airport: str?
