@@ -1,0 +1,97 @@
+name: Build and Push Add-on Images
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*', '*.*.*' ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            build_from: ghcr.io/home-assistant/amd64-base:latest
+          - arch: aarch64
+            platform: linux/arm64
+            build_from: ghcr.io/home-assistant/aarch64-base:latest
+          # Uncomment to add more architectures
+          # - arch: armv7
+          #   platform: linux/arm/v7
+          #   build_from: ghcr.io/home-assistant/armv7-base:latest
+          # - arch: armhf
+          #   platform: linux/arm/v6
+          #   build_from: ghcr.io/home-assistant/armhf-base:latest
+          # - arch: i386
+          #   platform: linux/386
+          #   build_from: ghcr.io/home-assistant/i386-base:latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lowercase owner for GHCR
+        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
+      - name: Set version tag
+        id: vars
+        run: |
+          VERSION_TAG="${GITHUB_REF_NAME}"
+          # If this is a branch push (like main), default to the version in config.yaml
+          if [[ "${GITHUB_REF}" == refs/heads/* ]]; then
+            VERSION_TAG=$(grep '^version:' config.yaml | awk '{print $2}' | tr -d '"')
+          fi
+          echo "version_tag=${VERSION_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.arch }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          push: true
+          build-args: |
+            BUILD_FROM=${{ matrix.build_from }}
+          tags: |
+            ghcr.io/${{ env.OWNER_LC }}/aviationweatherha-${{ matrix.arch }}:${{ steps.vars.outputs.version_tag }}
+            ghcr.io/${{ env.OWNER_LC }}/aviationweatherha-${{ matrix.arch }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Best-effort: Make package public so Home Assistant can pull without auth
+      - name: Make GHCR package public (best-effort)
+        if: always()
+        continue-on-error: true
+        env:
+          OWNER_LC: ${{ env.OWNER_LC }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG: aviationweatherha-${{ matrix.arch }}
+        run: |
+          echo "Attempting to set visibility=public for ghcr.io/${OWNER_LC}/${PKG}"
+          curl -s -L \
+            -X PATCH \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/user/packages/container/${PKG}/visibility \
+            -d '{"visibility":"public"}' || true
