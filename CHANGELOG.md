@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2026-02-04
+
+### Added
+- Dark mode support for web interface - automatically detects browser/system preference
+- Native Home Assistant weather entity compatible with the standard weather card
+- Individual sensors for all METAR attributes (temperature, wind, pressure, visibility, etc.)
+- Humidity calculation from temperature and dewpoint using Magnus formula
+- Auto-selection of nearest airport for sensor creation based on HA location
+
+### Changed
+- **Breaking**: `create_sensors` now defaults to `true` - weather entities created automatically
+- Weather entity now includes all standard attributes for HA weather card compatibility
+- Improved forecast integration with up to 12 TAF periods
+- Enhanced cloud coverage calculation from multiple layers
+- Rounded all numeric values for cleaner display
+
+### Fixed
+- Weather entity now properly displays in Home Assistant weather card
+- Removed deprecated `*_unit` attributes (HA uses implicit units)
+- Fixed pressure conversion from inHg to hPa for weather entities
+
 ## [2.0.1] - 2026-02-03
 
 ### Fixed

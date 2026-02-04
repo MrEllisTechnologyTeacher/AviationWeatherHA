@@ -6,7 +6,9 @@ This add-on provides real-time aviation weather data (METAR and TAF) from the [a
 
 - 📊 Real-time METAR (Meteorological Aerodrome Report) data
 - 🔮 TAF (Terminal Aerodrome Forecast) data
-- 🌐 Web-based dashboard with Ingress support
+- 🌐 Web-based dashboard with Ingress support (now with dark mode!)
+- 🏠 **Native Home Assistant Weather Entity** - Works with the standard weather card
+- 📈 **Individual Sensors** - Temperature, humidity, wind, pressure, visibility, and more
 - 🔄 Configurable update intervals
 - 💾 Data caching to reduce API calls
 - 📡 RESTful API endpoints for integration
@@ -55,6 +57,8 @@ airport_codes:
 update_interval: 30
 include_taf: true
 log_level: info
+create_sensors: true
+sensor_airport: auto
 ```
 
 ### Options
@@ -63,6 +67,8 @@ log_level: info
 - **update_interval**: Minutes between updates (5-120, default: 30)
 - **include_taf**: Include Terminal Aerodrome Forecast data (default: true)
 - **log_level**: Logging level - debug, info, warning, or error (default: info)
+- **create_sensors**: Create Home Assistant entities (default: true)
+- **sensor_airport**: Which airport to use for sensors - "auto" or specific ICAO code (default: auto)
 
 ## Usage
 
@@ -94,7 +100,37 @@ The add-on respects the aviationweather.gov API rate limits:
 
 ## Integration with Home Assistant
 
-You can use the RESTful sensor to integrate weather data into Home Assistant:
+### Using the Weather Entity (Recommended)
+
+The add-on automatically creates a weather entity compatible with Home Assistant's standard weather card. Simply add it to your dashboard:
+
+```yaml
+type: weather-forecast
+entity: weather.aviation_weather_kjfk  # Replace KJFK with your sensor_airport code
+```
+
+The weather entity provides:
+- Current conditions (temperature, humidity, pressure, wind, visibility)
+- Flight category (VFR/MVFR/IFR/LIFR)
+- TAF forecast periods
+- Aviation-specific attributes (cloud layers, raw METAR, decoded weather)
+
+### Using Individual Sensors
+
+Individual sensors are created for each weather parameter:
+- `sensor.aviation_weather_kjfk_temperature`
+- `sensor.aviation_weather_kjfk_dewpoint`
+- `sensor.aviation_weather_kjfk_wind_speed`
+- `sensor.aviation_weather_kjfk_wind_bearing`
+- `sensor.aviation_weather_kjfk_pressure`
+- `sensor.aviation_weather_kjfk_visibility`
+- `sensor.aviation_weather_kjfk_flight_category`
+- `sensor.aviation_weather_kjfk_condition`
+- `sensor.aviation_weather_kjfk_raw_metar`
+
+### Legacy REST API Integration
+
+You can also use the RESTful sensor to integrate weather data into Home Assistant:
 
 ```yaml
 sensor:

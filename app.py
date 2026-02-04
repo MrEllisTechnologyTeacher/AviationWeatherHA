@@ -111,7 +111,7 @@ def read_options():
             'update_interval': 30,
             'include_taf': True,
             'log_level': 'info',
-            'create_sensors': False,
+            'create_sensors': True,
             'sensor_airport': 'auto'
         }
     except Exception as e:
@@ -425,7 +425,7 @@ def map_metar_to_ha_condition(wx_string: str, flight_category: str) -> str:
 
 
 def create_ha_weather_entity(metar_data: Dict, taf_data: Optional[Dict], airport_code: str) -> bool:
-    """Create/update a Home Assistant weather entity"""
+    """Create/update a Home Assistant weather entity compatible with the weather card"""
     try:
         supervisor_token = os.environ.get('SUPERVISOR_TOKEN')
         if not supervisor_token:
@@ -445,59 +445,69 @@ def create_ha_weather_entity(metar_data: Dict, taf_data: Optional[Dict], airport
         flight_category = metar_data.get('flightCategory', 'VFR')
         condition = map_metar_to_ha_condition(wx_string, flight_category)
         
-        # Build weather entity state
-        weather_state = {
-            'state': condition,
-            'attributes': {
-                'friendly_name': f'{airport_code} Aviation Weather',
-                'attribution': 'Data provided by Aviation Weather Center',
-                'station': airport_code.upper(),
-                'observation_time': metar_data.get('obsTime'),
-                'observation_time_local': metar_data.get('obsTimeLocal')
-            }
+        # Build weather entity attributes with all required fields for HA weather card
+        attributes = {
+            'friendly_name': f'{airport_code} Aviation Weather',
+            'attribution': 'Data provided by Aviation Weather Center',
+            'supported_features': 1  # Forecast support
         }
         
-        # Required: Temperature (convert from C to match HA preference)
+        # Station and observation time
+        attributes['station'] = airport_code.upper()
+        if metar_data.get('obsTime'):
+            attributes['observation_time'] = metar_data['obsTime']
+        if metar_data.get('obsTimeLocal'):
+            attributes['observation_time_local'] = metar_data['obsTimeLocal']
+        
+        # Temperature - REQUIRED for weather entities
         if 'temp' in metar_data and metar_data['temp'] is not None:
-            weather_state['attributes']['temperature'] = float(metar_data['temp'])
-            weather_state['attributes']['temperature_unit'] = '°C'
+            attributes['temperature'] = round(float(metar_data['temp']), 1)
         
-        # Optional: Humidity
+        # Humidity - calculate from temp and dewpoint if not directly available
         if 'humidity' in metar_data and metar_data['humidity'] is not None:
-            weather_state['attributes']['humidity'] = float(metar_data['humidity'])
+            attributes['humidity'] = round(float(metar_data['humidity']), 0)
+        elif 'temp' in metar_data and 'dewp' in metar_data:
+            # Calculate relative humidity using Magnus formula
+            temp = float(metar_data['temp'])
+            dewp = float(metar_data['dewp'])
+            try:
+                humidity = 100 * math.exp((17.625 * dewp) / (243.04 + dewp)) / math.exp((17.625 * temp) / (243.04 + temp))
+                attributes['humidity'] = round(min(100, max(0, humidity)), 0)
+            except:
+                pass
         
-        # Optional: Pressure (use altimHpa if available, otherwise press)
-        pressure_hpa = metar_data.get('altimHpa') or metar_data.get('press')
-        if pressure_hpa:
-            weather_state['attributes']['pressure'] = float(pressure_hpa)
-            weather_state['attributes']['pressure_unit'] = 'hPa'
+        # Pressure - convert inHg to hPa if needed
+        if 'altim' in metar_data and metar_data['altim'] is not None:
+            # altim is in inHg, convert to hPa (1 inHg = 33.8639 hPa)
+            attributes['pressure'] = round(float(metar_data['altim']) * 33.8639, 1)
+        elif 'press' in metar_data and metar_data['press'] is not None:
+            attributes['pressure'] = round(float(metar_data['press']), 1)
         
-        # Optional: Wind speed (convert from knots to km/h for HA)
+        # Wind speed - convert from knots to km/h
         if 'wspd' in metar_data and metar_data['wspd'] is not None:
             # 1 knot = 1.852 km/h
             wind_speed_kmh = float(metar_data['wspd']) * 1.852
-            weather_state['attributes']['wind_speed'] = round(wind_speed_kmh, 1)
-            weather_state['attributes']['wind_speed_unit'] = 'km/h'
-            weather_state['attributes']['wind_speed_kt'] = float(metar_data['wspd'])
+            attributes['wind_speed'] = round(wind_speed_kmh, 1)
+            # Store original knots value
+            attributes['wind_speed_kt'] = round(float(metar_data['wspd']), 1)
         
-        # Optional: Wind gust
+        # Wind gust
         if 'wgst' in metar_data and metar_data['wgst'] is not None:
             wind_gust_kmh = float(metar_data['wgst']) * 1.852
-            weather_state['attributes']['wind_gust_speed'] = round(wind_gust_kmh, 1)
+            attributes['wind_gust_speed'] = round(wind_gust_kmh, 1)
         
-        # Optional: Wind bearing
+        # Wind bearing (direction in degrees)
         if 'wdir' in metar_data and metar_data['wdir'] is not None:
-            weather_state['attributes']['wind_bearing'] = float(metar_data['wdir'])
+            attributes['wind_bearing'] = round(float(metar_data['wdir']), 0)
         
-        # Optional: Visibility (convert from SM to km)
+        # Visibility - convert from statute miles to km
         if 'visib' in metar_data and metar_data['visib'] is not None:
             # 1 SM = 1.60934 km
             visibility_km = float(metar_data['visib']) * 1.60934
-            weather_state['attributes']['visibility'] = round(visibility_km, 1)
-            weather_state['attributes']['visibility_unit'] = 'km'
-            weather_state['attributes']['visibility_sm'] = float(metar_data['visib'])
+            attributes['visibility'] = round(visibility_km, 1)
+            attributes['visibility_sm'] = round(float(metar_data['visib']), 1)
         
-        # Optional: Cloud coverage (percentage from sky cover)
+        # Cloud coverage percentage
         cloud_coverage = None
         if 'cover' in metar_data:
             cover_map = {
@@ -505,28 +515,37 @@ def create_ha_weather_entity(metar_data: Dict, taf_data: Optional[Dict], airport
                 'FEW': 25, 'SCT': 50, 'BKN': 75, 'OVC': 100, 'VV': 100
             }
             cloud_coverage = cover_map.get(metar_data['cover'])
+        elif metar_data.get('cloudLayers'):
+            # Use highest coverage from cloud layers
+            max_coverage = 0
+            for layer in metar_data['cloudLayers']:
+                cover = layer.get('cover', '')
+                coverage_value = {'SKC': 0, 'CLR': 0, 'FEW': 25, 'SCT': 50, 'BKN': 75, 'OVC': 100, 'VV': 100}.get(cover, 0)
+                max_coverage = max(max_coverage, coverage_value)
+            if max_coverage > 0:
+                cloud_coverage = max_coverage
         
         if cloud_coverage is not None:
-            weather_state['attributes']['cloud_coverage'] = cloud_coverage
+            attributes['cloud_coverage'] = cloud_coverage
         
-        # Optional: Dewpoint
+        # Dewpoint
         if 'dewp' in metar_data and metar_data['dewp'] is not None:
-            weather_state['attributes']['dew_point'] = float(metar_data['dewp'])
+            attributes['dew_point'] = round(float(metar_data['dewp']), 1)
         
-        # Additional aviation-specific attributes
-        weather_state['attributes']['flight_category'] = flight_category
-        weather_state['attributes']['raw_metar'] = metar_data.get('rawOb', '')
+        # Aviation-specific attributes
+        attributes['flight_category'] = flight_category
+        attributes['raw_metar'] = metar_data.get('rawOb', '')
         
         if metar_data.get('wxDecoded'):
-            weather_state['attributes']['weather_decoded'] = metar_data['wxDecoded']
+            attributes['weather_decoded'] = metar_data['wxDecoded']
         
         if metar_data.get('cloudLayers'):
-            weather_state['attributes']['cloud_layers'] = metar_data['cloudLayers']
+            attributes['cloud_layers'] = metar_data['cloudLayers']
         
         # Add forecast if TAF is available
         if taf_data and 'decodedForecasts' in taf_data:
             forecast_periods = []
-            for period in taf_data['decodedForecasts'][:8]:  # Limit to 8 periods
+            for period in taf_data['decodedForecasts'][:12]:  # Up to 12 periods
                 forecast_item = {
                     'datetime': period.get('fromTime'),
                     'condition': map_metar_to_ha_condition(
@@ -537,23 +556,29 @@ def create_ha_weather_entity(metar_data: Dict, taf_data: Optional[Dict], airport
                 
                 # Add temperature if available
                 if 'temp' in period and period['temp'] is not None:
-                    forecast_item['temperature'] = float(period['temp'])
+                    forecast_item['temperature'] = round(float(period['temp']), 1)
                 
-                # Add wind
+                # Add wind (convert to km/h)
                 if 'wspd' in period and period['wspd'] is not None:
                     forecast_item['wind_speed'] = round(float(period['wspd']) * 1.852, 1)
                 
                 if 'wdir' in period and period['wdir'] is not None:
-                    forecast_item['wind_bearing'] = float(period['wdir'])
+                    forecast_item['wind_bearing'] = round(float(period['wdir']), 0)
                 
-                # Add visibility
-                if 'visib' in period and period['visib'] is not None:
-                    forecast_item['visibility'] = round(float(period['visib']) * 1.60934, 1)
+                # Add pressure if available
+                if 'altim' in period and period['altim'] is not None:
+                    forecast_item['pressure'] = round(float(period['altim']) * 33.8639, 1)
                 
                 forecast_periods.append(forecast_item)
             
             if forecast_periods:
-                weather_state['attributes']['forecast'] = forecast_periods
+                attributes['forecast'] = forecast_periods
+        
+        # Build complete state object
+        weather_state = {
+            'state': condition,
+            'attributes': attributes
+        }
         
         # Create/update weather entity
         response = requests.post(
@@ -564,7 +589,8 @@ def create_ha_weather_entity(metar_data: Dict, taf_data: Optional[Dict], airport
         )
         
         if response.status_code in [200, 201]:
-            logger.info(f"Created/updated weather entity {entity_id}")
+            logger.info(f"Created/updated weather entity {entity_id} with condition '{condition}'")
+            logger.debug(f"Weather entity attributes: {list(attributes.keys())}")
             return True
         else:
             logger.warning(f"Failed to create weather entity {entity_id}: {response.status_code} - {response.text}")

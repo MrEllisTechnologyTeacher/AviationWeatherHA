@@ -1,6 +1,6 @@
 name: "Aviation Weather"
 description: "Provides aviation weather data (METAR, TAF) from aviationweather.gov API"
-version: "2.0.1"
+version: "2.1.0"
 slug: "aviation_weather"
 init: false
 arch:
@@ -23,7 +23,7 @@ options:
   update_interval: 30
   include_taf: true
   log_level: "info"
-  create_sensors: false
+  create_sensors: true
   sensor_airport: "auto"
 schema:
   airport_codes:
