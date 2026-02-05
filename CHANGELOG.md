@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.2] - 2026-02-05
+
+### Added
+- Automatic weather data refresh on startup
+- Initial weather data fetched and published immediately when add-on starts
+
 ## [2.2.1] - 2026-02-05
 
 ### Fixed

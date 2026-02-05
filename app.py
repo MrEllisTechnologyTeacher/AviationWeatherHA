@@ -250,7 +250,7 @@ def publish_mqtt_discovery(airport_code: str):
             "name": f"Aviation Weather {airport_code.upper()}",
             "model": "METAR/TAF Station",
             "manufacturer": "Aviation Weather Center",
-            "sw_version": "2.2.1",
+            "sw_version": "2.2.2",
             "configuration_url": f"https://aviationweather.gov/metar?id={airport_code}"
         }
         
@@ -1595,6 +1595,10 @@ try:
         logger.info("MQTT initialized successfully")
     else:
         logger.warning("MQTT initialization failed, will use API fallback")
+    
+    logger.info("Fetching initial weather data...")
+    update_weather_data()
+    logger.info("Initial weather data updated")
 except Exception as e:
     logger.error(f"Error during initialization: {e}", exc_info=True)
 
