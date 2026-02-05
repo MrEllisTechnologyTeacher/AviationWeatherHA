@@ -1,6 +1,6 @@
 name: "Aviation Weather"
 description: "Provides aviation weather data (METAR, TAF) from aviationweather.gov API"
-version: "2.4.1"
+version: "2.4.2"
 slug: "aviation_weather"
 init: false
 arch:

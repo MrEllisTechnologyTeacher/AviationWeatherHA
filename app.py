@@ -249,7 +249,7 @@ def publish_mqtt_discovery(airport_code: str):
             "name": f"Aviation Weather {airport_code.upper()}",
             "model": "METAR/TAF Station",
             "manufacturer": "Aviation Weather Center",
-            "sw_version": "2.4.1",
+            "sw_version": "2.4.2",
             "configuration_url": f"https://aviationweather.gov/metar?id={airport_code}"
         }
         

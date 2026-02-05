@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.2] - 2026-02-05
+
+### Fixed
+- CSS syntax error in dark mode styles (invalid media query grouping)
+- Separated @media query from html.dark-mode class selector for proper CSS validation
+
 ## [2.4.1] - 2026-02-05
 
 ### Fixed

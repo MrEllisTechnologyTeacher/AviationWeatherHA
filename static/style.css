@@ -434,8 +434,7 @@ header h1 {
 }
 
 /* Dark Mode Support - Both media query and class-based for iframe compatibility */
-@media (prefers-color-scheme: dark),
-html.dark-mode {
+@media (prefers-color-scheme: dark) {
     body {
         background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
         color: #e2e8f0;
@@ -615,4 +614,185 @@ html.dark-mode {
         background: #2c5282;
         color: #90cdf4;
     }
+}
+
+/* Dark mode class-based for iframe compatibility */
+html.dark-mode body {
+    background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+    color: #e2e8f0;
+}
+
+html.dark-mode .airport-card {
+    background: #2d3748;
+    color: #e2e8f0;
+}
+
+html.dark-mode .airport-header h2 {
+    color: #90cdf4;
+}
+
+html.dark-mode .airport-header {
+    border-bottom-color: #4a5568;
+}
+
+html.dark-mode .weather-section h3 {
+    color: #cbd5e0;
+}
+
+html.dark-mode .raw-text {
+    background: #1a202c;
+    color: #e2e8f0;
+    border-left-color: #4299e1;
+}
+
+html.dark-mode .weather-decoded {
+    background: #2c5282;
+    color: #bee3f8;
+    border-left-color: #3182ce;
+}
+
+html.dark-mode .weather-decoded strong {
+    color: #90cdf4;
+}
+
+html.dark-mode .detail-item {
+    background: #1a202c;
+    border-left-color: #4299e1;
+}
+
+html.dark-mode .detail-item.highlight {
+    background: #744210;
+    border-left-color: #f59e0b;
+}
+
+html.dark-mode .detail-item .label {
+    color: #cbd5e0;
+}
+
+html.dark-mode .detail-item .value {
+    color: #e2e8f0;
+}
+
+html.dark-mode .cloud-layers {
+    border-top-color: #4a5568;
+}
+
+html.dark-mode .cloud-layers h4 {
+    color: #90cdf4;
+}
+
+html.dark-mode .cloud-layer-card {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+    border-color: #4299e1;
+}
+
+html.dark-mode .cloud-cover.skc,
+html.dark-mode .cloud-cover.clr,
+html.dark-mode .cloud-cover.nsc {
+    background: #2c5282;
+    color: #90cdf4;
+}
+
+html.dark-mode .cloud-cover.few {
+    background: #2c5282;
+    color: #90cdf4;
+}
+
+html.dark-mode .cloud-cover.sct {
+    background: #2d3748;
+    color: #90cdf4;
+}
+
+html.dark-mode .cloud-cover.bkn {
+    background: #4a5568;
+    color: #e2e8f0;
+}
+
+html.dark-mode .cloud-cover.ovc {
+    background: #718096;
+    color: #ffffff;
+}
+
+html.dark-mode .cloud-cover.vv {
+    background: #4a5568;
+    color: #ffffff;
+}
+
+html.dark-mode .cloud-coverage {
+    color: #a0aec0;
+}
+
+html.dark-mode .cloud-altitude {
+    color: #cbd5e0;
+}
+
+html.dark-mode .cloud-type {
+    color: #e2e8f0;
+}
+
+html.dark-mode .cloud-type strong {
+    color: #90cdf4;
+}
+
+html.dark-mode .warning-badge {
+    background: #742a2a;
+    color: #feb2b2;
+}
+
+html.dark-mode .caution-badge {
+    background: #744210;
+    color: #fbd38d;
+}
+
+html.dark-mode .no-data {
+    color: #a0aec0;
+}
+
+html.dark-mode .no-airports {
+    background: #2d3748;
+}
+
+html.dark-mode .no-airports p {
+    color: #cbd5e0;
+}
+
+html.dark-mode .taf-header {
+    background: #1e3a5f;
+    border-left-color: #3182ce;
+    color: #90cdf4;
+}
+
+html.dark-mode .taf-forecasts h4 {
+    color: #90cdf4;
+}
+
+html.dark-mode .forecast-period {
+    background: #1a202c;
+    border-color: #4a5568;
+}
+
+html.dark-mode .forecast-period:hover {
+    border-color: #4299e1;
+}
+
+html.dark-mode .forecast-type {
+    background: #3182ce;
+}
+
+html.dark-mode .forecast-time {
+    color: #a0aec0;
+}
+
+html.dark-mode .forecast-item {
+    background: #2d3748;
+    color: #e2e8f0;
+}
+
+html.dark-mode .forecast-item strong {
+    color: #90cdf4;
+}
+
+html.dark-mode .cloud-summary {
+    background: #2c5282;
+    color: #90cdf4;
 }
