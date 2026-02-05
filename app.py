@@ -249,7 +249,7 @@ def publish_mqtt_discovery(airport_code: str):
             "name": f"Aviation Weather {airport_code.upper()}",
             "model": "METAR/TAF Station",
             "manufacturer": "Aviation Weather Center",
-            "sw_version": "2.3.0",
+            "sw_version": "2.3.1",
             "configuration_url": f"https://aviationweather.gov/metar?id={airport_code}"
         }
         
@@ -417,7 +417,7 @@ def publish_mqtt_state(metar_data: Dict, taf_data: Optional[Dict], airport_code:
         # Build attributes for weather entity
         weather_attrs = {
             "temperature": metar_data.get('temp'),
-            "pressure": round(float(metar_data['altim']) * 33.8639, 1) if 'altim' in metar_data else None,
+            "pressure": metar_data.get('altimHpa') if 'altimHpa' in metar_data else None,
             "wind_bearing": metar_data.get('wdir'),
             "wind_speed": round(float(metar_data['wspd']) * 1.852, 1) if 'wspd' in metar_data else None,
             "visibility": round(parse_visibility(metar_data.get('visib')) * 1.60934, 1) if metar_data.get('visib') else None,
@@ -450,12 +450,10 @@ def publish_mqtt_state(metar_data: Dict, taf_data: Optional[Dict], airport_code:
         if 'wdir' in metar_data:
             mqtt_client.publish(f"homeassistant/sensor/{base_id}_wind_bearing/state", metar_data['wdir'])
         
-        if 'altim' in metar_data:
-            pressure_inhg = round(metar_data['altim'], 2)
-            mqtt_client.publish(f"homeassistant/sensor/{base_id}_pressure/state", pressure_inhg)
-            pressure_hpa = round(metar_data['altim'] * 33.8639, 1)
+        if 'altimInHg' in metar_data:
+            mqtt_client.publish(f"homeassistant/sensor/{base_id}_pressure/state", metar_data['altimInHg'])
             mqtt_client.publish(f"homeassistant/sensor/{base_id}_pressure/attributes",
-                              json.dumps({"pressure_hpa": pressure_hpa}))
+                              json.dumps({"pressure_hpa": metar_data.get('altimHpa', 0)}))
         
         if 'visib' in metar_data:
             visib_sm = parse_visibility(metar_data['visib'])
@@ -622,16 +620,16 @@ def create_ha_sensors(metar_data: Dict, airport_code: str) -> bool:
             })
         
         # Pressure (Altimeter)
-        if 'altim' in metar_data:
+        if 'altimInHg' in metar_data:
             sensors.append({
                 'entity_id': f'sensor.{base_id}_pressure',
-                'state': round(metar_data['altim'], 2),  # inHg
+                'state': metar_data['altimInHg'],  # inHg
                 'attributes': {
                     'unit_of_measurement': 'inHg',
                     'device_class': 'atmospheric_pressure',
                     'friendly_name': f'{airport_code} Pressure',
                     'icon': 'mdi:gauge',
-                    'pressure_hpa': round(metar_data['altim'] * 33.8639, 1)
+                    'pressure_hpa': metar_data.get('altimHpa', 0)
                 }
             })
         
@@ -874,10 +872,9 @@ def create_ha_weather_entity(metar_data: Dict, taf_data: Optional[Dict], airport
             except:
                 pass
         
-        # Pressure - convert inHg to hPa if needed
-        if 'altim' in metar_data and metar_data['altim'] is not None:
-            # altim is in inHg, convert to hPa (1 inHg = 33.8639 hPa)
-            attributes['pressure'] = round(float(metar_data['altim']) * 33.8639, 1)
+        # Pressure - use normalized hPa value
+        if 'altimHpa' in metar_data and metar_data['altimHpa'] is not None:
+            attributes['pressure'] = metar_data['altimHpa']
         elif 'press' in metar_data and metar_data['press'] is not None:
             attributes['pressure'] = round(float(metar_data['press']), 1)
         
@@ -966,8 +963,15 @@ def create_ha_weather_entity(metar_data: Dict, taf_data: Optional[Dict], airport
                     forecast_item['wind_bearing'] = round(float(period['wdir']), 0)
                 
                 # Add pressure if available
-                if 'altim' in period and period['altim'] is not None:
-                    forecast_item['pressure'] = round(float(period['altim']) * 33.8639, 1)
+                if 'altimHpa' in period and period['altimHpa'] is not None:
+                    forecast_item['pressure'] = period['altimHpa']
+                elif 'altim' in period and period['altim'] is not None:
+                    # Fallback: check if value is already hPa or needs conversion
+                    altim_val = float(period['altim'])
+                    if altim_val > 60:  # Already in hPa
+                        forecast_item['pressure'] = round(altim_val, 1)
+                    else:  # In inHg, convert to hPa
+                        forecast_item['pressure'] = round(altim_val * 33.8639, 1)
                 
                 forecast_periods.append(forecast_item)
             

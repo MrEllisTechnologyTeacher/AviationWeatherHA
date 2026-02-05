@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.1] - 2026-02-05
+
+### Fixed
+- Pressure conversion now uses normalized altimInHg and altimHpa fields
+- Pressure values correctly displayed in inHg instead of raw API values
+- Weather entity pressure attribute correctly uses hPa from normalized data
+
 ## [2.3.0] - 2026-02-05
 
 ### Changed
