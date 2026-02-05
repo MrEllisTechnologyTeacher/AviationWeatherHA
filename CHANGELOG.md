@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.4] - 2026-02-05
+
+### Fixed
+- Corrected weather entity unit fields to match actual data format (°C, hPa, km/h)
+- Weather entities now properly match published state values
+
 ## [2.4.3] - 2026-02-05
 
 ### Fixed
