@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0] - 2026-02-05
+
+### Added
+- **MQTT Discovery support** - Entities now properly linked to an "Aviation Weather" device
+- Device shows up in Settings → Devices & Services → Devices tab
+- All sensors and weather entity grouped under single device
+- MQTT configuration options (host, port, username, password)
+- Automatic fallback to API method if MQTT unavailable
+
+### Changed
+- Entities created via MQTT discovery by default (requires MQTT broker)
+- Device name format: "Aviation Weather {AIRPORT}"
+- Added paho-mqtt dependency
+
 ## [2.1.3] - 2026-02-05
 
 ### Fixed

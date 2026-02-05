@@ -16,6 +16,7 @@ from typing import Optional, Dict, List, Tuple
 import requests
 from flask import Flask, render_template, jsonify, request
 from werkzeug.middleware.proxy_fix import ProxyFix
+import paho.mqtt.client as mqtt
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -75,6 +76,68 @@ weather_cache = {
     'taf': {},
     'last_update': None
 }
+
+# MQTT client
+mqtt_client = None
+mqtt_connected = False
+
+
+def on_mqtt_connect(client, userdata, flags, rc):
+    """Callback when MQTT connects"""
+    global mqtt_connected
+    if rc == 0:
+        logger.info("Connected to MQTT broker")
+        mqtt_connected = True
+    else:
+        logger.error(f"Failed to connect to MQTT broker: {rc}")
+        mqtt_connected = False
+
+
+def on_mqtt_disconnect(client, userdata, rc):
+    """Callback when MQTT disconnects"""
+    global mqtt_connected
+    mqtt_connected = False
+    if rc != 0:
+        logger.warning(f"Unexpected MQTT disconnection: {rc}")
+
+
+def init_mqtt():
+    """Initialize MQTT connection"""
+    global mqtt_client, mqtt_connected
+    
+    try:
+        options = read_options()
+        
+        if not options.get('mqtt_enabled', True):
+            logger.info("MQTT disabled in configuration")
+            return False
+        
+        mqtt_host = options.get('mqtt_host', 'core-mosquitto')
+        mqtt_port = options.get('mqtt_port', 1883)
+        mqtt_username = options.get('mqtt_username', '')
+        mqtt_password = options.get('mqtt_password', '')
+        
+        logger.info(f"Initializing MQTT connection to {mqtt_host}:{mqtt_port}")
+        
+        mqtt_client = mqtt.Client(client_id="aviation_weather", clean_session=True)
+        mqtt_client.on_connect = on_mqtt_connect
+        mqtt_client.on_disconnect = on_mqtt_disconnect
+        
+        if mqtt_username:
+            mqtt_client.username_pw_set(mqtt_username, mqtt_password)
+        
+        mqtt_client.connect(mqtt_host, mqtt_port, 60)
+        mqtt_client.loop_start()
+        
+        # Wait a moment for connection
+        time.sleep(1)
+        
+        return mqtt_connected
+        
+    except Exception as e:
+        logger.error(f"Error initializing MQTT: {e}")
+        mqtt_connected = False
+        return False
 
 
 def load_cache():
@@ -170,6 +233,247 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     r = 6371
     
     return c * r
+
+
+def publish_mqtt_discovery(airport_code: str):
+    """Publish MQTT discovery messages for all entities"""
+    if not mqtt_connected or not mqtt_client:
+        logger.warning("MQTT not connected, skipping discovery")
+        return False
+    
+    try:
+        base_id = f"aviation_weather_{airport_code.lower()}"
+        
+        # Device information (shared by all entities)
+        device = {
+            "identifiers": [f"aviation_weather_{airport_code.lower()}"],
+            "name": f"Aviation Weather {airport_code.upper()}",
+            "model": "METAR/TAF Station",
+            "manufacturer": "Aviation Weather Center",
+            "sw_version": "2.2.0",
+            "configuration_url": f"https://aviationweather.gov/metar?id={airport_code}"
+        }
+        
+        # Weather entity
+        weather_config = {
+            "name": f"{airport_code} Aviation Weather",
+            "unique_id": f"{base_id}_weather",
+            "state_topic": f"homeassistant/weather/{base_id}/state",
+            "json_attributes_topic": f"homeassistant/weather/{base_id}/attributes",
+            "device": device
+        }
+        
+        mqtt_client.publish(
+            f"homeassistant/weather/{base_id}/config",
+            json.dumps(weather_config),
+            retain=True
+        )
+        
+        # Temperature sensor
+        temp_config = {
+            "name": f"{airport_code} Temperature",
+            "unique_id": f"{base_id}_temperature",
+            "state_topic": f"homeassistant/sensor/{base_id}_temperature/state",
+            "unit_of_measurement": "°C",
+            "device_class": "temperature",
+            "state_class": "measurement",
+            "json_attributes_topic": f"homeassistant/sensor/{base_id}_temperature/attributes",
+            "device": device
+        }
+        
+        mqtt_client.publish(
+            f"homeassistant/sensor/{base_id}_temperature/config",
+            json.dumps(temp_config),
+            retain=True
+        )
+        
+        # Dewpoint sensor
+        dewp_config = {
+            "name": f"{airport_code} Dewpoint",
+            "unique_id": f"{base_id}_dewpoint",
+            "state_topic": f"homeassistant/sensor/{base_id}_dewpoint/state",
+            "unit_of_measurement": "°C",
+            "device_class": "temperature",
+            "state_class": "measurement",
+            "json_attributes_topic": f"homeassistant/sensor/{base_id}_dewpoint/attributes",
+            "device": device
+        }
+        
+        mqtt_client.publish(
+            f"homeassistant/sensor/{base_id}_dewpoint/config",
+            json.dumps(dewp_config),
+            retain=True
+        )
+        
+        # Wind Speed sensor
+        wind_speed_config = {
+            "name": f"{airport_code} Wind Speed",
+            "unique_id": f"{base_id}_wind_speed",
+            "state_topic": f"homeassistant/sensor/{base_id}_wind_speed/state",
+            "unit_of_measurement": "kt",
+            "icon": "mdi:weather-windy",
+            "state_class": "measurement",
+            "json_attributes_topic": f"homeassistant/sensor/{base_id}_wind_speed/attributes",
+            "device": device
+        }
+        
+        mqtt_client.publish(
+            f"homeassistant/sensor/{base_id}_wind_speed/config",
+            json.dumps(wind_speed_config),
+            retain=True
+        )
+        
+        # Wind Direction sensor
+        wind_dir_config = {
+            "name": f"{airport_code} Wind Direction",
+            "unique_id": f"{base_id}_wind_bearing",
+            "state_topic": f"homeassistant/sensor/{base_id}_wind_bearing/state",
+            "unit_of_measurement": "°",
+            "icon": "mdi:compass",
+            "state_class": "measurement",
+            "json_attributes_topic": f"homeassistant/sensor/{base_id}_wind_bearing/attributes",
+            "device": device
+        }
+        
+        mqtt_client.publish(
+            f"homeassistant/sensor/{base_id}_wind_bearing/config",
+            json.dumps(wind_dir_config),
+            retain=True
+        )
+        
+        # Pressure sensor
+        pressure_config = {
+            "name": f"{airport_code} Pressure",
+            "unique_id": f"{base_id}_pressure",
+            "state_topic": f"homeassistant/sensor/{base_id}_pressure/state",
+            "unit_of_measurement": "hPa",
+            "device_class": "atmospheric_pressure",
+            "state_class": "measurement",
+            "json_attributes_topic": f"homeassistant/sensor/{base_id}_pressure/attributes",
+            "device": device
+        }
+        
+        mqtt_client.publish(
+            f"homeassistant/sensor/{base_id}_pressure/config",
+            json.dumps(pressure_config),
+            retain=True
+        )
+        
+        # Visibility sensor
+        visibility_config = {
+            "name": f"{airport_code} Visibility",
+            "unique_id": f"{base_id}_visibility",
+            "state_topic": f"homeassistant/sensor/{base_id}_visibility/state",
+            "unit_of_measurement": "km",
+            "icon": "mdi:eye",
+            "state_class": "measurement",
+            "json_attributes_topic": f"homeassistant/sensor/{base_id}_visibility/attributes",
+            "device": device
+        }
+        
+        mqtt_client.publish(
+            f"homeassistant/sensor/{base_id}_visibility/config",
+            json.dumps(visibility_config),
+            retain=True
+        )
+        
+        # Flight Category sensor
+        flight_cat_config = {
+            "name": f"{airport_code} Flight Category",
+            "unique_id": f"{base_id}_flight_category",
+            "state_topic": f"homeassistant/sensor/{base_id}_flight_category/state",
+            "icon": "mdi:airplane",
+            "json_attributes_topic": f"homeassistant/sensor/{base_id}_flight_category/attributes",
+            "device": device
+        }
+        
+        mqtt_client.publish(
+            f"homeassistant/sensor/{base_id}_flight_category/config",
+            json.dumps(flight_cat_config),
+            retain=True
+        )
+        
+        logger.info(f"Published MQTT discovery for {airport_code}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error publishing MQTT discovery: {e}", exc_info=True)
+        return False
+
+
+def publish_mqtt_state(metar_data: Dict, taf_data: Optional[Dict], airport_code: str):
+    """Publish state updates via MQTT"""
+    if not mqtt_connected or not mqtt_client:
+        logger.warning("MQTT not connected, skipping state publish")
+        return False
+    
+    try:
+        base_id = f"aviation_weather_{airport_code.lower()}"
+        
+        # Publish weather entity state
+        wx_string = metar_data.get('wxString', '')
+        flight_category = metar_data.get('flightCategory', 'VFR')
+        condition = map_metar_to_ha_condition(wx_string, flight_category)
+        
+        # Build attributes for weather entity
+        weather_attrs = {
+            "temperature": metar_data.get('temp'),
+            "pressure": round(float(metar_data['altim']) * 33.8639, 1) if 'altim' in metar_data else None,
+            "wind_bearing": metar_data.get('wdir'),
+            "wind_speed": round(float(metar_data['wspd']) * 1.852, 1) if 'wspd' in metar_data else None,
+            "visibility": round(parse_visibility(metar_data.get('visib')) * 1.60934, 1) if metar_data.get('visib') else None,
+            "humidity": metar_data.get('humidity'),
+            "station": airport_code.upper(),
+            "flight_category": flight_category,
+            "raw_metar": metar_data.get('rawOb', ''),
+            "observation_time": metar_data.get('obsTime')
+        }
+        
+        mqtt_client.publish(f"homeassistant/weather/{base_id}/state", condition)
+        mqtt_client.publish(f"homeassistant/weather/{base_id}/attributes", json.dumps(weather_attrs))
+        
+        # Publish individual sensor states
+        if 'temp' in metar_data:
+            mqtt_client.publish(f"homeassistant/sensor/{base_id}_temperature/state", metar_data['temp'])
+            mqtt_client.publish(f"homeassistant/sensor/{base_id}_temperature/attributes", 
+                              json.dumps({"temp_f": round(metar_data['temp'] * 9/5 + 32, 1)}))
+        
+        if 'dewp' in metar_data:
+            mqtt_client.publish(f"homeassistant/sensor/{base_id}_dewpoint/state", metar_data['dewp'])
+            mqtt_client.publish(f"homeassistant/sensor/{base_id}_dewpoint/attributes",
+                              json.dumps({"dewp_f": round(metar_data['dewp'] * 9/5 + 32, 1)}))
+        
+        if 'wspd' in metar_data:
+            mqtt_client.publish(f"homeassistant/sensor/{base_id}_wind_speed/state", metar_data['wspd'])
+            mqtt_client.publish(f"homeassistant/sensor/{base_id}_wind_speed/attributes",
+                              json.dumps({"wind_gust": metar_data.get('wgst')}))
+        
+        if 'wdir' in metar_data:
+            mqtt_client.publish(f"homeassistant/sensor/{base_id}_wind_bearing/state", metar_data['wdir'])
+        
+        if 'altim' in metar_data:
+            pressure_hpa = round(metar_data['altim'] * 33.8639, 1)
+            mqtt_client.publish(f"homeassistant/sensor/{base_id}_pressure/state", pressure_hpa)
+            mqtt_client.publish(f"homeassistant/sensor/{base_id}_pressure/attributes",
+                              json.dumps({"altimeter_inhg": metar_data['altim']}))
+        
+        if 'visib' in metar_data:
+            visib_sm = parse_visibility(metar_data['visib'])
+            if visib_sm is not None:
+                visibility_km = round(visib_sm * 1.60934, 1)
+                mqtt_client.publish(f"homeassistant/sensor/{base_id}_visibility/state", visibility_km)
+                mqtt_client.publish(f"homeassistant/sensor/{base_id}_visibility/attributes",
+                                  json.dumps({"visibility_sm": metar_data['visib']}))
+        
+        if 'flightCategory' in metar_data:
+            mqtt_client.publish(f"homeassistant/sensor/{base_id}_flight_category/state", metar_data['flightCategory'])
+        
+        logger.debug(f"Published MQTT states for {airport_code}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error publishing MQTT states: {e}", exc_info=True)
+        return False
 
 
 def parse_visibility(visib_value) -> Optional[float]:
@@ -1144,13 +1448,24 @@ def update_weather_data():
                     
                     # Create HA sensors and weather entity if this is the sensor airport
                     if create_sensors and airport.upper() == sensor_airport:
-                        # Create individual sensors
-                        if create_ha_sensors(metar_data, airport.upper()):
-                            logger.info(f"Updated HA sensors for {airport}")
-                        
-                        # Create weather entity with forecast
-                        if create_ha_weather_entity(metar_data, taf_data, airport.upper()):
-                            logger.info(f"Updated HA weather entity for {airport}")
+                        # Publish MQTT discovery first (creates the device)
+                        if mqtt_connected:
+                            if publish_mqtt_discovery(airport.upper()):
+                                logger.info(f"Published MQTT discovery for {airport}")
+                            
+                            # Publish state via MQTT
+                            if publish_mqtt_state(metar_data, taf_data, airport.upper()):
+                                logger.info(f"Published MQTT states for {airport}")
+                        else:
+                            # Fallback to API method if MQTT not available
+                            logger.info("MQTT not available, using API method")
+                            # Create individual sensors
+                            if create_ha_sensors(metar_data, airport.upper()):
+                                logger.info(f"Updated HA sensors for {airport}")
+                            
+                            # Create weather entity with forecast
+                            if create_ha_weather_entity(metar_data, taf_data, airport.upper()):
+                                logger.info(f"Updated HA weather entity for {airport}")
                 
             except Exception as e:
                 logger.error(f"Error updating weather for {airport}: {e}")
@@ -1275,6 +1590,13 @@ if __name__ == '__main__':
         logger.info("Loading cache...")
         load_cache()
         logger.info("Cache loaded, Flask app ready")
+        
+        # Initialize MQTT
+        logger.info("Initializing MQTT...")
+        if init_mqtt():
+            logger.info("MQTT initialized successfully")
+        else:
+            logger.warning("MQTT initialization failed, will use API fallback")
         
         # Log all registered routes for debugging
         logger.info("Registered routes:")
