@@ -250,7 +250,7 @@ def publish_mqtt_discovery(airport_code: str):
             "name": f"Aviation Weather {airport_code.upper()}",
             "model": "METAR/TAF Station",
             "manufacturer": "Aviation Weather Center",
-            "sw_version": "2.2.2",
+            "sw_version": "2.2.3",
             "configuration_url": f"https://aviationweather.gov/metar?id={airport_code}"
         }
         
@@ -715,6 +715,63 @@ def create_ha_sensors(metar_data: Dict, airport_code: str) -> bool:
     except Exception as e:
         logger.error(f"Error creating HA sensors: {e}", exc_info=True)
         return False
+
+
+def get_ceiling_from_clouds(cloud_layers: list) -> Optional[int]:
+    """Extract ceiling height from cloud layers
+    
+    Ceiling is defined as the lowest broken (BKN) or overcast (OVC) layer.
+    
+    Args:
+        cloud_layers: List of cloud layer dicts with 'cover' and 'base' keys
+    
+    Returns:
+        Ceiling height in feet AGL, or None if no ceiling exists
+    """
+    for layer in cloud_layers:
+        cover = layer.get('cover', '').upper()
+        if cover in ['BKN', 'OVC', 'VV']:  # VV = vertical visibility (obscuration)
+            base = layer.get('base')
+            if base is not None:
+                try:
+                    return int(base)
+                except (ValueError, TypeError):
+                    pass
+    return None
+
+
+def calculate_flight_category(visibility_sm: float, ceiling_ft: Optional[int]) -> str:
+    """Calculate flight category based on visibility and ceiling per FAA definitions
+    
+    VFR:  Visibility > 5 SM AND Ceiling > 3000 ft
+    MVFR: Visibility 3-5 SM OR Ceiling 1000-3000 ft
+    IFR:  Visibility 1-3 SM OR Ceiling 500-1000 ft
+    LIFR: Visibility < 1 SM OR Ceiling < 500 ft
+    
+    Args:
+        visibility_sm: Visibility in statute miles
+        ceiling_ft: Ceiling in feet AGL (lowest broken or overcast layer), None if no ceiling
+    
+    Returns:
+        Flight category: 'VFR', 'MVFR', 'IFR', or 'LIFR'
+    """
+    # Default to VFR if we have good visibility and no ceiling
+    if visibility_sm > 5 and (ceiling_ft is None or ceiling_ft > 3000):
+        return 'VFR'
+    
+    # LIFR: Visibility < 1 SM OR Ceiling < 500 ft
+    if visibility_sm < 1 or (ceiling_ft is not None and ceiling_ft < 500):
+        return 'LIFR'
+    
+    # IFR: Visibility 1-3 SM OR Ceiling 500-1000 ft
+    if visibility_sm < 3 or (ceiling_ft is not None and ceiling_ft < 1000):
+        return 'IFR'
+    
+    # MVFR: Visibility 3-5 SM OR Ceiling 1000-3000 ft
+    if visibility_sm <= 5 or (ceiling_ft is not None and ceiling_ft <= 3000):
+        return 'MVFR'
+    
+    return 'VFR'
 
 
 def map_metar_to_ha_condition(wx_string: str, flight_category: str) -> str:
@@ -1303,6 +1360,13 @@ def fetch_metar(airport_code: str) -> Optional[Dict]:
                 metar['wxDecoded'] = decode_weather_codes(metar['wxString'])
             # Add decoded cloud layers
             metar['cloudLayers'] = decode_cloud_layers(metar)
+            
+            # Calculate flight category based on visibility and ceiling (only if not provided by API)
+            if 'flightCategory' not in metar or not metar['flightCategory']:
+                visibility_sm = parse_visibility(metar.get('visib', 10))  # Default to 10 SM if missing
+                ceiling_ft = get_ceiling_from_clouds(metar.get('cloudLayers', []))
+                metar['flightCategory'] = calculate_flight_category(visibility_sm, ceiling_ft)
+            
             # Convert observation time to local
             if 'obsTime' in metar:
                 metar['obsTimeLocal'] = convert_to_local_time(metar['obsTime'])

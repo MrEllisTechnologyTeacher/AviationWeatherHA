@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.3] - 2026-02-05
+
+### Added
+- Custom flight category calculation based on FAA definitions as fallback
+- VFR: Visibility > 5 SM AND Ceiling > 3000 ft
+- MVFR: Visibility 3-5 SM OR Ceiling 1000-3000 ft  
+- IFR: Visibility 1-3 SM OR Ceiling 500-1000 ft
+- LIFR: Visibility < 1 SM OR Ceiling < 500 ft
+- Ceiling extraction from cloud layers (lowest BKN/OVC layer)
+
+### Changed
+- Flight category uses API value if present, calculates locally as fallback
+- More accurate VFR determination when API doesn't provide category
+
+### Documentation
+- Added MQTT authentication requirements to README
+- Documented Mosquitto broker setup with username/password
+
 ## [2.2.2] - 2026-02-05
 
 ### Added

@@ -69,6 +69,40 @@ sensor_airport: auto
 - **log_level**: Logging level - debug, info, warning, or error (default: info)
 - **create_sensors**: Create Home Assistant entities (default: true)
 - **sensor_airport**: Which airport to use for sensors - "auto" or specific ICAO code (default: auto)
+- **mqtt_enabled**: Enable MQTT Discovery for device grouping (default: true)
+- **mqtt_host**: MQTT broker hostname (default: core-mosquitto)
+- **mqtt_port**: MQTT broker port (default: 1883)
+- **mqtt_username**: MQTT username - **REQUIRED** if your broker uses authentication
+- **mqtt_password**: MQTT password - **REQUIRED** if your broker uses authentication
+
+### MQTT Configuration (Recommended)
+
+This add-on uses MQTT Discovery to create a proper device in Home Assistant with all entities grouped together. **MQTT authentication is required** if your Mosquitto broker has authentication enabled (which is the default for Home Assistant's Mosquitto add-on).
+
+1. Create a user for the add-on in your Mosquitto broker:
+   - Go to **Settings → Add-ons → Mosquitto broker → Configuration**
+   - Add a login entry:
+   ```yaml
+   logins:
+     - username: aviation_weather
+       password: your_secure_password
+   ```
+   - Save and restart the Mosquitto broker
+
+2. Configure the Aviation Weather add-on with the same credentials:
+   ```yaml
+   mqtt_enabled: true
+   mqtt_host: core-mosquitto
+   mqtt_port: 1883
+   mqtt_username: aviation_weather
+   mqtt_password: your_secure_password
+   ```
+
+3. Restart the Aviation Weather add-on
+
+After configuration, your entities will be grouped under an "Aviation Weather {AIRPORT}" device in **Settings → Devices & Services → Devices**.
+
+**Note**: If MQTT is unavailable or misconfigured, the add-on will automatically fall back to the Supervisor API method (entities without device grouping).
 
 ## Usage
 
