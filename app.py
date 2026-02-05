@@ -249,7 +249,7 @@ def publish_mqtt_discovery(airport_code: str):
             "name": f"Aviation Weather {airport_code.upper()}",
             "model": "METAR/TAF Station",
             "manufacturer": "Aviation Weather Center",
-            "sw_version": "2.4.2",
+            "sw_version": "2.4.5",
             "configuration_url": f"https://aviationweather.gov/metar?id={airport_code}"
         }
         
@@ -257,7 +257,6 @@ def publish_mqtt_discovery(airport_code: str):
         weather_config = {
             "name": f"{airport_code} Aviation Weather",
             "unique_id": f"{base_id}_weather",
-            "object_id": f"{base_id}_weather",
             "state_topic": f"homeassistant/weather/{base_id}/state",
             "temperature_state_topic": f"homeassistant/weather/{base_id}/temperature",
             "temperature_unit": "°C",
@@ -271,11 +270,14 @@ def publish_mqtt_discovery(airport_code: str):
             "device": device
         }
         
-        mqtt_client.publish(
+        result = mqtt_client.publish(
             f"homeassistant/weather/{base_id}/config",
             json.dumps(weather_config),
+            qos=1,
             retain=True
         )
+        if result.rc != 0:
+            logger.error(f"Failed to publish weather entity config for {airport_code}: {result.rc}")
         
         # Temperature sensor
         temp_config = {

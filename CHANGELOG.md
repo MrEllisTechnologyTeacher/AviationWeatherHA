@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.5] - 2026-02-05
+
+### Fixed
+- Removed object_id from weather entity config (potential conflict)
+- Added QoS 1 to weather entity discovery for reliable delivery
+- Added error logging for failed MQTT publishes
+- Updated device software version tracking
+
 ## [2.4.4] - 2026-02-05
 
 ### Fixed
