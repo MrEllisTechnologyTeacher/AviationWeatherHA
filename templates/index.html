@@ -64,8 +64,9 @@
                             {% if data.metar.wdir and data.metar.wspd %}
                             <div class="detail-item">
                                 <span class="label">Wind:</span>
-                                <span class="value">{{ data.metar.wdir }}° at {{ data.metar.wspd }} kt
-                                {% if data.metar.wgst %} gusting {{ data.metar.wgst }} kt{% endif %}
+                                <span class="value {% if data.metar.wspd > 20 %}wind-danger{% elif data.metar.wspd > 15 %}wind-caution{% else %}wind-normal{% endif %}">
+                                    {{ data.metar.wdir }}° at {{ data.metar.wspd }} kt
+                                    {% if data.metar.wgst %} gusting {{ data.metar.wgst }} kt{% endif %}
                                 </span>
                             </div>
                             {% endif %}

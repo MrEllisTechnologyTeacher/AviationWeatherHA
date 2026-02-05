@@ -165,23 +165,51 @@ header h1 {
 }
 
 .flight-category-vfr {
-    color: #22c55e;
+    background: #22c55e;
+    color: white;
     font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 6px;
 }
 
 .flight-category-mvfr {
-    color: #3b82f6;
+    background: #3b82f6;
+    color: white;
     font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 6px;
 }
 
 .flight-category-ifr {
+    background: #eab308;
+    color: #000;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 6px;
+}
+
+.flight-category-lifr {
+    background: #ef4444;
+    color: white;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 6px;
+}
+
+/* Wind speed color coding */
+.wind-danger {
     color: #ef4444;
     font-weight: 700;
 }
 
-.flight-category-lifr {
-    color: #991b1b;
+.wind-caution {
+    color: #eab308;
     font-weight: 700;
+}
+
+.wind-normal {
+    color: #333;
+    font-weight: 500;
 }
 
 /* Cloud Layers Styling */
@@ -491,6 +519,19 @@ header h1 {
         color: #e2e8f0;
     }
     
+    /* Wind speed colors remain the same in dark mode for visibility */
+    .wind-danger {
+        color: #f87171;
+    }
+    
+    .wind-caution {
+        color: #fbbf24;
+    }
+    
+    .wind-normal {
+        color: #e2e8f0;
+    }
+    
     .cloud-layers {
         border-top-color: #4a5568;
     }
@@ -670,6 +711,19 @@ html.dark-mode .detail-item .label {
 }
 
 html.dark-mode .detail-item .value {
+    color: #e2e8f0;
+}
+
+/* Wind speed colors remain the same in dark mode for visibility */
+html.dark-mode .wind-danger {
+    color: #f87171;
+}
+
+html.dark-mode .wind-caution {
+    color: #fbbf24;
+}
+
+html.dark-mode .wind-normal {
     color: #e2e8f0;
 }
 

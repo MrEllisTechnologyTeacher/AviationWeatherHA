@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.5.1] - 2026-02-05
+
+### Changed
+- Enhanced flight category visual indicators with colored badges:
+  - VFR: Green background
+  - MVFR: Blue background
+  - IFR: Yellow background with black text
+  - LIFR: Red background
+- Added wind speed color coding:
+  - Red for winds > 20 knots
+  - Yellow for winds 15-20 knots
+  - Normal color for winds < 15 knots
+- Updated dark mode support for new color schemes
+
 ## [2.5.0] - 2026-02-05
 
 ### Fixed
