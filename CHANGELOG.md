@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.5.0] - 2026-02-05
+
+### Fixed
+- Weather entities now created via Home Assistant Supervisor API instead of MQTT
+- Home Assistant does not support weather entities via MQTT discovery
+- MQTT continues to be used for sensors (Temperature, Dewpoint, Wind, Pressure, Visibility, Flight Category)
+- Weather entities will now properly appear in Weather Forecast Card entity picker
+
+### Changed
+- Removed MQTT weather entity discovery configuration
+- Removed MQTT weather state publishing (not needed)
+- Weather entities always created via API regardless of MQTT status
+
 ## [2.4.6] - 2026-02-05
 
 ### Changed

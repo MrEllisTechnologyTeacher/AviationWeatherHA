@@ -77,7 +77,7 @@ create_sensors: true
 
 ### MQTT Configuration (Recommended)
 
-This add-on uses MQTT Discovery to create a proper device in Home Assistant with all entities grouped together. **MQTT authentication is required** if your Mosquitto broker has authentication enabled (which is the default for Home Assistant's Mosquitto add-on).
+This add-on uses MQTT Discovery to create sensor entities grouped under proper devices in Home Assistant. **Weather entities are created via the Home Assistant Supervisor API** (MQTT weather entities are not supported by Home Assistant). **MQTT authentication is required** if your Mosquitto broker has authentication enabled (which is the default for Home Assistant's Mosquitto add-on).
 
 1. Create a user for the add-on in your Mosquitto broker:
    - Go to **Settings → Add-ons → Mosquitto broker → Configuration**
@@ -100,9 +100,11 @@ This add-on uses MQTT Discovery to create a proper device in Home Assistant with
 
 3. Restart the Aviation Weather add-on
 
-After configuration, your entities will be grouped under an "Aviation Weather {AIRPORT}" device in **Settings → Devices & Services → Devices**.
+After configuration:
+- **Sensor entities** (Temperature, Dewpoint, Wind Speed, Wind Direction, Pressure, Visibility, Flight Category) will be grouped under an "Aviation Weather {AIRPORT}" device via MQTT Discovery
+- **Weather entities** (`weather.aviation_weather_{airport}`) will be created via the Supervisor API and appear in the Weather Forecast Card entity picker
 
-**Note**: If MQTT is unavailable or misconfigured, the add-on will automatically fall back to the Supervisor API method (entities without device grouping).
+**Note**: If MQTT is unavailable or misconfigured, the add-on will automatically fall back to the Supervisor API method for sensors (entities without device grouping).
 
 ## Usage
 

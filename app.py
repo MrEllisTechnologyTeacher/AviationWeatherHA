@@ -249,31 +249,12 @@ def publish_mqtt_discovery(airport_code: str):
             "name": f"Aviation Weather {airport_code.upper()}",
             "model": "METAR/TAF Station",
             "manufacturer": "Aviation Weather Center",
-            "sw_version": "2.4.6",
+            "sw_version": "2.5.0",
             "configuration_url": f"https://aviationweather.gov/metar?id={airport_code}"
         }
         
-        # Weather entity
-        weather_config = {
-            "name": f"{airport_code.upper()} Weather",
-            "unique_id": f"{base_id}_weather",
-            "state_topic": f"homeassistant/weather/{base_id}/state",
-            "temperature_topic": f"homeassistant/weather/{base_id}/temperature",
-            "humidity_topic": f"homeassistant/weather/{base_id}/humidity",
-            "pressure_topic": f"homeassistant/weather/{base_id}/pressure", 
-            "wind_speed_topic": f"homeassistant/weather/{base_id}/wind_speed",
-            "wind_bearing_topic": f"homeassistant/weather/{base_id}/wind_bearing",
-            "device": device
-        }
-        
-        result = mqtt_client.publish(
-            f"homeassistant/weather/{base_id}/config",
-            json.dumps(weather_config),
-            qos=1,
-            retain=True
-        )
-        if result.rc != 0:
-            logger.error(f"Failed to publish weather entity config for {airport_code}: {result.rc}")
+        # Note: Weather entities are not supported via MQTT discovery in Home Assistant
+        # They are created via the Supervisor API instead (see create_ha_weather_entity)
         
         # Temperature sensor
         temp_config = {
@@ -473,31 +454,9 @@ def publish_mqtt_state(metar_data: Dict, taf_data: Optional[Dict], airport_code:
             
             if forecast_periods:
                 weather_attrs['forecast'] = forecast_periods
-                # Publish forecast to dedicated topic
-                mqtt_client.publish(f"homeassistant/weather/{base_id}/forecast", json.dumps(forecast_periods))
         
-        # Publish weather entity state (condition)
-        mqtt_client.publish(f"homeassistant/weather/{base_id}/state", condition)
-        
-        # Publish individual weather attribute state topics
-        if 'temp' in metar_data and metar_data['temp'] is not None:
-            mqtt_client.publish(f"homeassistant/weather/{base_id}/temperature", metar_data['temp'])
-        
-        if 'humidity' in metar_data and metar_data['humidity'] is not None:
-            mqtt_client.publish(f"homeassistant/weather/{base_id}/humidity", metar_data['humidity'])
-        
-        if 'altimHpa' in metar_data and metar_data['altimHpa'] is not None:
-            mqtt_client.publish(f"homeassistant/weather/{base_id}/pressure", metar_data['altimHpa'])
-        
-        if 'wspd' in metar_data and metar_data['wspd'] is not None:
-            wind_speed_kmh = round(float(metar_data['wspd']) * 1.852, 1)
-            mqtt_client.publish(f"homeassistant/weather/{base_id}/wind_speed", wind_speed_kmh)
-        
-        if 'wdir' in metar_data and metar_data['wdir'] is not None:
-            mqtt_client.publish(f"homeassistant/weather/{base_id}/wind_bearing", metar_data['wdir'])
-        
-        # Publish combined attributes (includes forecast and extra data)
-        mqtt_client.publish(f"homeassistant/weather/{base_id}/attributes", json.dumps(weather_attrs))
+        # Note: Weather entity states not published via MQTT (created via API instead)
+        # Only publishing sensor states below
         
         # Publish individual sensor states
         if 'temp' in metar_data:
@@ -1564,7 +1523,7 @@ def update_weather_data():
                     
                     # Create HA sensors and weather entity for all airports
                     if create_sensors:
-                        # Publish MQTT discovery first (creates the device)
+                        # Publish MQTT discovery for sensors (creates the device)
                         if mqtt_connected:
                             if publish_mqtt_discovery(airport.upper()):
                                 logger.info(f"Published MQTT discovery for {airport}")
@@ -1578,10 +1537,10 @@ def update_weather_data():
                             # Create individual sensors
                             if create_ha_sensors(metar_data, airport.upper()):
                                 logger.info(f"Updated HA sensors for {airport}")
-                            
-                            # Create weather entity with forecast
-                            if create_ha_weather_entity(metar_data, taf_data, airport.upper()):
-                                logger.info(f"Updated HA weather entity for {airport}")
+                        
+                        # Always create weather entity via API (MQTT weather not supported by HA)
+                        if create_ha_weather_entity(metar_data, taf_data, airport.upper()):
+                            logger.info(f"Updated HA weather entity for {airport}")
                 
             except Exception as e:
                 logger.error(f"Error updating weather for {airport}: {e}")
