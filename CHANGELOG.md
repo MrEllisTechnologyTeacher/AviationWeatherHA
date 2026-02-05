@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.3] - 2026-02-05
+
+### Fixed
+- CSS file now loads properly in ingress by using relative path instead of url_for()
+- Fixed 404 error for static files in Home Assistant ingress panel
+
 ## [2.1.2] - 2026-02-05
 
 ### Fixed
