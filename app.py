@@ -172,6 +172,41 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     return c * r
 
 
+def parse_visibility(visib_value) -> Optional[float]:
+    """
+    Parse visibility value which can be a number or string like '10+', 'P6SM', etc.
+    Returns visibility in statute miles as a float, or None if invalid
+    """
+    if visib_value is None:
+        return None
+    
+    try:
+        # If it's already a number, return it
+        if isinstance(visib_value, (int, float)):
+            return float(visib_value)
+        
+        # Convert to string and clean up
+        vis_str = str(visib_value).strip().upper()
+        
+        # Handle "10+" (10 or more)
+        if '+' in vis_str:
+            vis_str = vis_str.replace('+', '')
+        
+        # Handle "P6SM" (prevailing 6 statute miles) - extract number
+        if 'P' in vis_str and 'SM' in vis_str:
+            vis_str = vis_str.replace('P', '').replace('SM', '')
+        
+        # Remove "SM" suffix if present
+        if 'SM' in vis_str:
+            vis_str = vis_str.replace('SM', '')
+        
+        # Try to convert to float
+        return float(vis_str)
+    except (ValueError, TypeError):
+        logger.warning(f"Could not parse visibility value: {visib_value}")
+        return None
+
+
 def find_nearest_airport(ha_location: Tuple[float, float], airport_list: List[str]) -> Optional[str]:
     """
     Find the nearest airport to HA location from a list of airport codes
@@ -298,16 +333,18 @@ def create_ha_sensors(metar_data: Dict, airport_code: str) -> bool:
         
         # Visibility
         if 'visib' in metar_data:
-            sensors.append({
-                'entity_id': f'sensor.{base_id}_visibility',
-                'state': round(metar_data['visib'] * 1.60934, 1),  # Convert SM to km
-                'attributes': {
-                    'unit_of_measurement': 'km',
-                    'friendly_name': f'{airport_code} Visibility',
-                    'icon': 'mdi:eye',
-                    'visibility_sm': metar_data['visib']
-                }
-            })
+            visib_sm = parse_visibility(metar_data['visib'])
+            if visib_sm is not None:
+                sensors.append({
+                    'entity_id': f'sensor.{base_id}_visibility',
+                    'state': round(visib_sm * 1.60934, 1),  # Convert SM to km
+                    'attributes': {
+                        'unit_of_measurement': 'km',
+                        'friendly_name': f'{airport_code} Visibility',
+                        'icon': 'mdi:eye',
+                        'visibility_sm': visib_sm
+                    }
+                })
         
         # Flight Category
         if 'flightCategory' in metar_data:
@@ -502,10 +539,12 @@ def create_ha_weather_entity(metar_data: Dict, taf_data: Optional[Dict], airport
         
         # Visibility - convert from statute miles to km
         if 'visib' in metar_data and metar_data['visib'] is not None:
-            # 1 SM = 1.60934 km
-            visibility_km = float(metar_data['visib']) * 1.60934
-            attributes['visibility'] = round(visibility_km, 1)
-            attributes['visibility_sm'] = round(float(metar_data['visib']), 1)
+            visib_sm = parse_visibility(metar_data['visib'])
+            if visib_sm is not None:
+                # 1 SM = 1.60934 km
+                visibility_km = visib_sm * 1.60934
+                attributes['visibility'] = round(visibility_km, 1)
+                attributes['visibility_sm'] = round(visib_sm, 1)
         
         # Cloud coverage percentage
         cloud_coverage = None

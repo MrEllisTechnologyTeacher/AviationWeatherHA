@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.1] - 2026-02-05
+
+### Fixed
+- Visibility parsing now handles string values like "10+" from the API
+- Added parse_visibility() helper function to properly convert visibility values to float
+- Fixed TypeError when visibility comes back as a string instead of numeric value
+
 ## [2.1.0] - 2026-02-04
 
 ### Added
