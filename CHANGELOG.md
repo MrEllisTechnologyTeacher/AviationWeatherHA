@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.1] - 2026-02-05
+
+### Fixed
+- MQTT weather entity discovery now includes required state topics
+- Weather entities now properly appear in Home Assistant entity picker
+- Added individual state topics for temperature, humidity, pressure, wind speed, and wind bearing
+- Weather entities now fully compatible with Home Assistant's weather card selector
+
 ## [2.4.0] - 2026-02-05
 
 ### Added

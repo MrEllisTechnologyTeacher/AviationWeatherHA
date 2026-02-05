@@ -249,7 +249,7 @@ def publish_mqtt_discovery(airport_code: str):
             "name": f"Aviation Weather {airport_code.upper()}",
             "model": "METAR/TAF Station",
             "manufacturer": "Aviation Weather Center",
-            "sw_version": "2.4.0",
+            "sw_version": "2.4.1",
             "configuration_url": f"https://aviationweather.gov/metar?id={airport_code}"
         }
         
@@ -257,7 +257,13 @@ def publish_mqtt_discovery(airport_code: str):
         weather_config = {
             "name": f"{airport_code} Aviation Weather",
             "unique_id": f"{base_id}_weather",
+            "object_id": f"{base_id}_weather",
             "state_topic": f"homeassistant/weather/{base_id}/state",
+            "temperature_state_topic": f"homeassistant/weather/{base_id}/temperature",
+            "humidity_state_topic": f"homeassistant/weather/{base_id}/humidity",
+            "pressure_state_topic": f"homeassistant/weather/{base_id}/pressure",
+            "wind_speed_state_topic": f"homeassistant/weather/{base_id}/wind_speed",
+            "wind_bearing_state_topic": f"homeassistant/weather/{base_id}/wind_bearing",
             "json_attributes_topic": f"homeassistant/weather/{base_id}/attributes",
             "device": device
         }
@@ -467,7 +473,27 @@ def publish_mqtt_state(metar_data: Dict, taf_data: Optional[Dict], airport_code:
             if forecast_periods:
                 weather_attrs['forecast'] = forecast_periods
         
+        # Publish weather entity state (condition)
         mqtt_client.publish(f"homeassistant/weather/{base_id}/state", condition)
+        
+        # Publish individual weather attribute state topics
+        if 'temp' in metar_data and metar_data['temp'] is not None:
+            mqtt_client.publish(f"homeassistant/weather/{base_id}/temperature", metar_data['temp'])
+        
+        if 'humidity' in metar_data and metar_data['humidity'] is not None:
+            mqtt_client.publish(f"homeassistant/weather/{base_id}/humidity", metar_data['humidity'])
+        
+        if 'altimHpa' in metar_data and metar_data['altimHpa'] is not None:
+            mqtt_client.publish(f"homeassistant/weather/{base_id}/pressure", metar_data['altimHpa'])
+        
+        if 'wspd' in metar_data and metar_data['wspd'] is not None:
+            wind_speed_kmh = round(float(metar_data['wspd']) * 1.852, 1)
+            mqtt_client.publish(f"homeassistant/weather/{base_id}/wind_speed", wind_speed_kmh)
+        
+        if 'wdir' in metar_data and metar_data['wdir'] is not None:
+            mqtt_client.publish(f"homeassistant/weather/{base_id}/wind_bearing", metar_data['wdir'])
+        
+        # Publish combined attributes (includes forecast and extra data)
         mqtt_client.publish(f"homeassistant/weather/{base_id}/attributes", json.dumps(weather_attrs))
         
         # Publish individual sensor states
