@@ -433,8 +433,9 @@ header h1 {
     }
 }
 
-/* Dark Mode Support */
-@media (prefers-color-scheme: dark) {
+/* Dark Mode Support - Both media query and class-based for iframe compatibility */
+@media (prefers-color-scheme: dark),
+html.dark-mode {
     body {
         background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
         color: #e2e8f0;

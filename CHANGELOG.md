@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.2] - 2026-02-05
+
+### Fixed
+- Improved dark mode detection for Home Assistant ingress iframe
+- Added JavaScript-based dark mode switcher that works in embedded contexts
+- CSS now supports both media query and class-based dark mode activation
+
 ## [2.1.1] - 2026-02-05
 
 ### Fixed

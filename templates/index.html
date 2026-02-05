@@ -292,6 +292,28 @@
                 btn.textContent = '🔄 Refresh';
             }
         });
+        
+        // Force dark mode detection for HA ingress (iframe might not inherit media query)
+        function applyDarkMode() {
+            const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const haTheme = document.body.parentElement?.style.colorScheme || 
+                           window.parent?.document.body.parentElement?.style.colorScheme;
+            
+            // Check if we're in a dark themed iframe
+            if (isDark || haTheme === 'dark') {
+                document.documentElement.classList.add('dark-mode');
+            } else {
+                document.documentElement.classList.remove('dark-mode');
+            }
+        }
+        
+        // Apply on load
+        applyDarkMode();
+        
+        // Listen for theme changes
+        if (window.matchMedia) {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyDarkMode);
+        }
     </script>
 </body>
 </html>
