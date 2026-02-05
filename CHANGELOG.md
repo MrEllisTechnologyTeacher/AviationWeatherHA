@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.0] - 2026-02-05
+
+### Changed
+- **Pressure sensor now displays in inHg** (inches of mercury) instead of hPa
+- **Visibility sensor now displays in SM** (statute miles) instead of km
+- **Sensors created for ALL configured airports** instead of just one
+- Each airport gets its own device with all 8 entities (weather + 7 sensors)
+- Removed sensor_airport configuration option (no longer needed)
+
+### Technical
+- MQTT Discovery configs updated with correct units
+- API fallback method updated with correct units
+- Removed auto-selection logic for single sensor airport
+
 ## [2.2.3] - 2026-02-05
 
 ### Added

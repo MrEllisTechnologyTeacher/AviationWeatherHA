@@ -58,7 +58,6 @@ update_interval: 30
 include_taf: true
 log_level: info
 create_sensors: true
-sensor_airport: auto
 ```
 
 ### Options
@@ -67,13 +66,14 @@ sensor_airport: auto
 - **update_interval**: Minutes between updates (5-120, default: 30)
 - **include_taf**: Include Terminal Aerodrome Forecast data (default: true)
 - **log_level**: Logging level - debug, info, warning, or error (default: info)
-- **create_sensors**: Create Home Assistant entities (default: true)
-- **sensor_airport**: Which airport to use for sensors - "auto" or specific ICAO code (default: auto)
+- **create_sensors**: Create Home Assistant entities for all configured airports (default: true)
 - **mqtt_enabled**: Enable MQTT Discovery for device grouping (default: true)
 - **mqtt_host**: MQTT broker hostname (default: core-mosquitto)
 - **mqtt_port**: MQTT broker port (default: 1883)
 - **mqtt_username**: MQTT username - **REQUIRED** if your broker uses authentication
 - **mqtt_password**: MQTT password - **REQUIRED** if your broker uses authentication
+
+**Note**: Each configured airport will get its own device with 8 entities (1 weather entity + 7 sensors).
 
 ### MQTT Configuration (Recommended)
 

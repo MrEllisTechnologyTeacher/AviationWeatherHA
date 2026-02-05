@@ -174,8 +174,7 @@ def read_options():
             'update_interval': 30,
             'include_taf': True,
             'log_level': 'info',
-            'create_sensors': True,
-            'sensor_airport': 'auto'
+            'create_sensors': True
         }
     except Exception as e:
         logger.error(f"Error reading options: {e}")
@@ -250,7 +249,7 @@ def publish_mqtt_discovery(airport_code: str):
             "name": f"Aviation Weather {airport_code.upper()}",
             "model": "METAR/TAF Station",
             "manufacturer": "Aviation Weather Center",
-            "sw_version": "2.2.3",
+            "sw_version": "2.3.0",
             "configuration_url": f"https://aviationweather.gov/metar?id={airport_code}"
         }
         
@@ -346,7 +345,7 @@ def publish_mqtt_discovery(airport_code: str):
             "name": f"{airport_code} Pressure",
             "unique_id": f"{base_id}_pressure",
             "state_topic": f"homeassistant/sensor/{base_id}_pressure/state",
-            "unit_of_measurement": "hPa",
+            "unit_of_measurement": "inHg",
             "device_class": "atmospheric_pressure",
             "state_class": "measurement",
             "json_attributes_topic": f"homeassistant/sensor/{base_id}_pressure/attributes",
@@ -364,7 +363,7 @@ def publish_mqtt_discovery(airport_code: str):
             "name": f"{airport_code} Visibility",
             "unique_id": f"{base_id}_visibility",
             "state_topic": f"homeassistant/sensor/{base_id}_visibility/state",
-            "unit_of_measurement": "km",
+            "unit_of_measurement": "SM",
             "icon": "mdi:eye",
             "state_class": "measurement",
             "json_attributes_topic": f"homeassistant/sensor/{base_id}_visibility/attributes",
@@ -452,18 +451,19 @@ def publish_mqtt_state(metar_data: Dict, taf_data: Optional[Dict], airport_code:
             mqtt_client.publish(f"homeassistant/sensor/{base_id}_wind_bearing/state", metar_data['wdir'])
         
         if 'altim' in metar_data:
+            pressure_inhg = round(metar_data['altim'], 2)
+            mqtt_client.publish(f"homeassistant/sensor/{base_id}_pressure/state", pressure_inhg)
             pressure_hpa = round(metar_data['altim'] * 33.8639, 1)
-            mqtt_client.publish(f"homeassistant/sensor/{base_id}_pressure/state", pressure_hpa)
             mqtt_client.publish(f"homeassistant/sensor/{base_id}_pressure/attributes",
-                              json.dumps({"altimeter_inhg": metar_data['altim']}))
+                              json.dumps({"pressure_hpa": pressure_hpa}))
         
         if 'visib' in metar_data:
             visib_sm = parse_visibility(metar_data['visib'])
             if visib_sm is not None:
+                mqtt_client.publish(f"homeassistant/sensor/{base_id}_visibility/state", round(visib_sm, 1))
                 visibility_km = round(visib_sm * 1.60934, 1)
-                mqtt_client.publish(f"homeassistant/sensor/{base_id}_visibility/state", visibility_km)
                 mqtt_client.publish(f"homeassistant/sensor/{base_id}_visibility/attributes",
-                                  json.dumps({"visibility_sm": metar_data['visib']}))
+                                  json.dumps({"visibility_km": visibility_km}))
         
         if 'flightCategory' in metar_data:
             mqtt_client.publish(f"homeassistant/sensor/{base_id}_flight_category/state", metar_data['flightCategory'])
@@ -625,13 +625,13 @@ def create_ha_sensors(metar_data: Dict, airport_code: str) -> bool:
         if 'altim' in metar_data:
             sensors.append({
                 'entity_id': f'sensor.{base_id}_pressure',
-                'state': round(metar_data['altim'] * 33.8639, 1),  # Convert inHg to hPa
+                'state': round(metar_data['altim'], 2),  # inHg
                 'attributes': {
-                    'unit_of_measurement': 'hPa',
+                    'unit_of_measurement': 'inHg',
                     'device_class': 'atmospheric_pressure',
                     'friendly_name': f'{airport_code} Pressure',
                     'icon': 'mdi:gauge',
-                    'altimeter_inhg': metar_data['altim']
+                    'pressure_hpa': round(metar_data['altim'] * 33.8639, 1)
                 }
             })
         
@@ -641,12 +641,12 @@ def create_ha_sensors(metar_data: Dict, airport_code: str) -> bool:
             if visib_sm is not None:
                 sensors.append({
                     'entity_id': f'sensor.{base_id}_visibility',
-                    'state': round(visib_sm * 1.60934, 1),  # Convert SM to km
+                    'state': round(visib_sm, 1),  # SM
                     'attributes': {
-                        'unit_of_measurement': 'km',
+                        'unit_of_measurement': 'SM',
                         'friendly_name': f'{airport_code} Visibility',
                         'icon': 'mdi:eye',
-                        'visibility_sm': visib_sm
+                        'visibility_km': round(visib_sm * 1.60934, 1)
                     }
                 })
         
@@ -1467,32 +1467,12 @@ def update_weather_data():
         airport_codes = options.get('airport_codes', [])
         include_taf = options.get('include_taf', True)
         create_sensors = options.get('create_sensors', False)
-        sensor_airport_option = options.get('sensor_airport', 'auto')
         
         if not airport_codes:
             logger.info("No airport codes configured")
             return
         
         logger.info(f"Updating weather data for: {', '.join(airport_codes)}")
-        
-        # Determine sensor airport
-        sensor_airport = None
-        if create_sensors:
-            if sensor_airport_option == 'auto':
-                # Find nearest airport to HA location
-                ha_location = get_ha_location()
-                if ha_location:
-                    sensor_airport = find_nearest_airport(ha_location, airport_codes)
-                    logger.info(f"Auto-selected sensor airport: {sensor_airport}")
-                else:
-                    logger.warning("Could not get HA location for auto-select, using first airport")
-                    sensor_airport = airport_codes[0] if airport_codes else None
-            elif sensor_airport_option.upper() in [a.upper() for a in airport_codes]:
-                sensor_airport = sensor_airport_option.upper()
-                logger.info(f"Using configured sensor airport: {sensor_airport}")
-            else:
-                logger.warning(f"Configured sensor airport {sensor_airport_option} not in airport list")
-                sensor_airport = airport_codes[0] if airport_codes else None
         
         for airport in airport_codes:
             try:
@@ -1510,8 +1490,8 @@ def update_weather_data():
                             weather_cache['taf'][airport.upper()] = taf_data
                             logger.info(f"Updated TAF for {airport}")
                     
-                    # Create HA sensors and weather entity if this is the sensor airport
-                    if create_sensors and airport.upper() == sensor_airport:
+                    # Create HA sensors and weather entity for all airports
+                    if create_sensors:
                         # Publish MQTT discovery first (creates the device)
                         if mqtt_connected:
                             if publish_mqtt_discovery(airport.upper()):

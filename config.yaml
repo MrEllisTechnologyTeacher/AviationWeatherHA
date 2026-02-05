@@ -1,6 +1,6 @@
 name: "Aviation Weather"
 description: "Provides aviation weather data (METAR, TAF) from aviationweather.gov API"
-version: "2.2.3"
+version: "2.3.0"
 slug: "aviation_weather"
 init: false
 arch:
@@ -24,7 +24,6 @@ options:
   include_taf: true
   log_level: "info"
   create_sensors: true
-  sensor_airport: "auto"
   mqtt_enabled: true
   mqtt_host: "core-mosquitto"
   mqtt_port: 1883
@@ -37,7 +36,6 @@ schema:
   include_taf: bool
   log_level: "list(debug|info|warning|error)"
   create_sensors: bool
-  sensor_airport: str?
   mqtt_enabled: bool
   mqtt_host: str
   mqtt_port: "int(1,65535)"
