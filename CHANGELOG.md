@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.0] - 2026-02-05
+
+### Added
+- **Full weather card support for all configured airports**
+- TAF forecast data now included in weather entity attributes
+- Each airport's weather entity displays up to 12 forecast periods
+- Forecast includes: datetime, condition, temperature, wind speed/bearing, pressure
+
+### Changed
+- MQTT weather entities now include forecast attribute (previously only API fallback had this)
+- Weather cards can now display TAF forecasts for all airports
+
 ## [2.3.1] - 2026-02-05
 
 ### Fixed

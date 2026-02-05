@@ -249,7 +249,7 @@ def publish_mqtt_discovery(airport_code: str):
             "name": f"Aviation Weather {airport_code.upper()}",
             "model": "METAR/TAF Station",
             "manufacturer": "Aviation Weather Center",
-            "sw_version": "2.3.1",
+            "sw_version": "2.4.0",
             "configuration_url": f"https://aviationweather.gov/metar?id={airport_code}"
         }
         
@@ -427,6 +427,45 @@ def publish_mqtt_state(metar_data: Dict, taf_data: Optional[Dict], airport_code:
             "raw_metar": metar_data.get('rawOb', ''),
             "observation_time": metar_data.get('obsTime')
         }
+        
+        # Add forecast if TAF is available
+        if taf_data and 'decodedForecasts' in taf_data:
+            forecast_periods = []
+            for period in taf_data['decodedForecasts'][:12]:  # Up to 12 periods
+                forecast_item = {
+                    'datetime': period.get('fromTime'),
+                    'condition': map_metar_to_ha_condition(
+                        period.get('wxString', ''),
+                        period.get('flightCategory', 'VFR')
+                    )
+                }
+                
+                # Add temperature if available
+                if 'temp' in period and period['temp'] is not None:
+                    forecast_item['temperature'] = round(float(period['temp']), 1)
+                
+                # Add wind (convert to km/h)
+                if 'wspd' in period and period['wspd'] is not None:
+                    forecast_item['wind_speed'] = round(float(period['wspd']) * 1.852, 1)
+                
+                if 'wdir' in period and period['wdir'] is not None:
+                    forecast_item['wind_bearing'] = round(float(period['wdir']), 0)
+                
+                # Add pressure if available
+                if 'altimHpa' in period and period['altimHpa'] is not None:
+                    forecast_item['pressure'] = period['altimHpa']
+                elif 'altim' in period and period['altim'] is not None:
+                    # Fallback: check if value is already hPa or needs conversion
+                    altim_val = float(period['altim'])
+                    if altim_val > 60:  # Already in hPa
+                        forecast_item['pressure'] = round(altim_val, 1)
+                    else:  # In inHg, convert to hPa
+                        forecast_item['pressure'] = round(altim_val * 33.8639, 1)
+                
+                forecast_periods.append(forecast_item)
+            
+            if forecast_periods:
+                weather_attrs['forecast'] = forecast_periods
         
         mqtt_client.publish(f"homeassistant/weather/{base_id}/state", condition)
         mqtt_client.publish(f"homeassistant/weather/{base_id}/attributes", json.dumps(weather_attrs))

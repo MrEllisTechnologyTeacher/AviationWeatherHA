@@ -136,31 +136,36 @@ The add-on respects the aviationweather.gov API rate limits:
 
 ### Using the Weather Entity (Recommended)
 
-The add-on automatically creates a weather entity compatible with Home Assistant's standard weather card. Simply add it to your dashboard:
+The add-on automatically creates a weather entity for **each configured airport**, compatible with Home Assistant's standard weather card with forecast support. Simply add them to your dashboard:
 
 ```yaml
 type: weather-forecast
-entity: weather.aviation_weather_kjfk  # Replace KJFK with your sensor_airport code
+entity: weather.aviation_weather_kpwa  # Replace with your airport code
 ```
 
-The weather entity provides:
+**Multiple Airports:** If you configure multiple airports (e.g., KPWA, KOKC, KTIK), each gets its own weather entity:
+- `weather.aviation_weather_kpwa`
+- `weather.aviation_weather_kokc`
+- `weather.aviation_weather_ktik`
+
+Each weather entity provides:
 - Current conditions (temperature, humidity, pressure, wind, visibility)
+- **TAF forecast periods** (up to 12 periods) - displayed in weather card
 - Flight category (VFR/MVFR/IFR/LIFR)
-- TAF forecast periods
 - Aviation-specific attributes (cloud layers, raw METAR, decoded weather)
 
 ### Using Individual Sensors
 
-Individual sensors are created for each weather parameter:
-- `sensor.aviation_weather_kjfk_temperature`
-- `sensor.aviation_weather_kjfk_dewpoint`
-- `sensor.aviation_weather_kjfk_wind_speed`
-- `sensor.aviation_weather_kjfk_wind_bearing`
-- `sensor.aviation_weather_kjfk_pressure`
-- `sensor.aviation_weather_kjfk_visibility`
-- `sensor.aviation_weather_kjfk_flight_category`
-- `sensor.aviation_weather_kjfk_condition`
-- `sensor.aviation_weather_kjfk_raw_metar`
+Individual sensors are created for each airport's weather parameters:
+- `sensor.aviation_weather_kjfk_temperature` (°C)
+- `sensor.aviation_weather_kjfk_dewpoint` (°C)
+- `sensor.aviation_weather_kjfk_wind_speed` (knots)
+- `sensor.aviation_weather_kjfk_wind_bearing` (°)
+- `sensor.aviation_weather_kjfk_pressure` (inHg)
+- `sensor.aviation_weather_kjfk_visibility` (SM)
+- `sensor.aviation_weather_kjfk_flight_category` (VFR/MVFR/IFR/LIFR)
+- `sensor.aviation_weather_kjfk_condition` (decoded weather)
+- `sensor.aviation_weather_kjfk_raw_metar` (raw METAR text)
 
 ### Legacy REST API Integration
 
