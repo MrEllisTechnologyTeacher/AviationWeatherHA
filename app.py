@@ -249,24 +249,20 @@ def publish_mqtt_discovery(airport_code: str):
             "name": f"Aviation Weather {airport_code.upper()}",
             "model": "METAR/TAF Station",
             "manufacturer": "Aviation Weather Center",
-            "sw_version": "2.4.5",
+            "sw_version": "2.4.6",
             "configuration_url": f"https://aviationweather.gov/metar?id={airport_code}"
         }
         
         # Weather entity
         weather_config = {
-            "name": f"{airport_code} Aviation Weather",
+            "name": f"{airport_code.upper()} Weather",
             "unique_id": f"{base_id}_weather",
             "state_topic": f"homeassistant/weather/{base_id}/state",
-            "temperature_state_topic": f"homeassistant/weather/{base_id}/temperature",
-            "temperature_unit": "°C",
-            "humidity_state_topic": f"homeassistant/weather/{base_id}/humidity",
-            "pressure_state_topic": f"homeassistant/weather/{base_id}/pressure",
-            "pressure_unit": "hPa",
-            "wind_speed_state_topic": f"homeassistant/weather/{base_id}/wind_speed",
-            "wind_speed_unit": "km/h",
-            "wind_bearing_state_topic": f"homeassistant/weather/{base_id}/wind_bearing",
-            "json_attributes_topic": f"homeassistant/weather/{base_id}/attributes",
+            "temperature_topic": f"homeassistant/weather/{base_id}/temperature",
+            "humidity_topic": f"homeassistant/weather/{base_id}/humidity",
+            "pressure_topic": f"homeassistant/weather/{base_id}/pressure", 
+            "wind_speed_topic": f"homeassistant/weather/{base_id}/wind_speed",
+            "wind_bearing_topic": f"homeassistant/weather/{base_id}/wind_bearing",
             "device": device
         }
         
@@ -477,6 +473,8 @@ def publish_mqtt_state(metar_data: Dict, taf_data: Optional[Dict], airport_code:
             
             if forecast_periods:
                 weather_attrs['forecast'] = forecast_periods
+                # Publish forecast to dedicated topic
+                mqtt_client.publish(f"homeassistant/weather/{base_id}/forecast", json.dumps(forecast_periods))
         
         # Publish weather entity state (condition)
         mqtt_client.publish(f"homeassistant/weather/{base_id}/state", condition)

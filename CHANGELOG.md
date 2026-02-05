@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.6] - 2026-02-05
+
+### Changed
+- Simplified weather entity MQTT discovery config to use standard topic naming
+- Changed from `temperature_state_topic` to `temperature_topic` format
+- Removed unit specifications to let Home Assistant handle conversions
+
 ## [2.4.5] - 2026-02-05
 
 ### Fixed
