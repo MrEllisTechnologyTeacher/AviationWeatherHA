@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.1] - 2026-02-05
+
+### Fixed
+- Fixed initialization code to run under gunicorn WSGI server
+- Moved cache loading and MQTT initialization to module level
+- Ensures MQTT discovery works when add-on starts
+
 ## [2.2.0] - 2026-02-05
 
 ### Added

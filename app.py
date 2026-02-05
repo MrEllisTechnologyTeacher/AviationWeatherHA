@@ -250,7 +250,7 @@ def publish_mqtt_discovery(airport_code: str):
             "name": f"Aviation Weather {airport_code.upper()}",
             "model": "METAR/TAF Station",
             "manufacturer": "Aviation Weather Center",
-            "sw_version": "2.2.0",
+            "sw_version": "2.2.1",
             "configuration_url": f"https://aviationweather.gov/metar?id={airport_code}"
         }
         
@@ -1584,26 +1584,29 @@ def health():
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
 
 
+# Initialize on module load (for gunicorn)
+try:
+    logger.info("Loading cache...")
+    load_cache()
+    logger.info("Cache loaded")
+    
+    logger.info("Initializing MQTT...")
+    if init_mqtt():
+        logger.info("MQTT initialized successfully")
+    else:
+        logger.warning("MQTT initialization failed, will use API fallback")
+except Exception as e:
+    logger.error(f"Error during initialization: {e}", exc_info=True)
+
+
 if __name__ == '__main__':
     try:
-        # Load cache on startup
-        logger.info("Loading cache...")
-        load_cache()
-        logger.info("Cache loaded, Flask app ready")
-        
-        # Initialize MQTT
-        logger.info("Initializing MQTT...")
-        if init_mqtt():
-            logger.info("MQTT initialized successfully")
-        else:
-            logger.warning("MQTT initialization failed, will use API fallback")
-        
         # Log all registered routes for debugging
         logger.info("Registered routes:")
         for rule in app.url_map.iter_rules():
             logger.info(f"  {rule.endpoint}: {rule.methods} {rule.rule}")
         
-        # Run Flask app
+        # Run Flask app directly (not used with gunicorn)
         logger.info("Starting Flask app...")
         app.run(host='0.0.0.0', port=8099, debug=(LOG_LEVEL == 'DEBUG'))
     except Exception as e:
