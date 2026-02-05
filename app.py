@@ -260,9 +260,12 @@ def publish_mqtt_discovery(airport_code: str):
             "object_id": f"{base_id}_weather",
             "state_topic": f"homeassistant/weather/{base_id}/state",
             "temperature_state_topic": f"homeassistant/weather/{base_id}/temperature",
+            "temperature_unit": "°F",
             "humidity_state_topic": f"homeassistant/weather/{base_id}/humidity",
             "pressure_state_topic": f"homeassistant/weather/{base_id}/pressure",
+            "pressure_unit": "inHg",
             "wind_speed_state_topic": f"homeassistant/weather/{base_id}/wind_speed",
+            "wind_speed_unit": "mph",
             "wind_bearing_state_topic": f"homeassistant/weather/{base_id}/wind_bearing",
             "json_attributes_topic": f"homeassistant/weather/{base_id}/attributes",
             "device": device

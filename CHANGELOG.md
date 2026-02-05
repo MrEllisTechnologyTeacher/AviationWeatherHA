@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.3] - 2026-02-05
+
+### Fixed
+- Added required `temperature_unit`, `pressure_unit`, and `wind_speed_unit` fields to weather entity MQTT discovery config
+- Weather entities now properly register with Home Assistant
+
 ## [2.4.2] - 2026-02-05
 
 ### Fixed
