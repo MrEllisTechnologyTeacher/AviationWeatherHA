@@ -9,8 +9,9 @@ import json
 import time
 import logging
 import threading
+import atexit
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional, Dict, List, Tuple
 import requests
@@ -1489,6 +1490,174 @@ def fetch_taf(airport_code: str) -> Optional[Dict]:
         return None
 
 
+# Auto-update timers
+metar_timer = None
+taf_timer = None
+
+
+def update_metars_only():
+    """Update only METAR data for all configured airports"""
+    global weather_cache
+    
+    try:
+        options = read_options()
+        airport_codes = options.get('airport_codes', [])
+        create_sensors = options.get('create_sensors', False)
+        
+        if not airport_codes:
+            logger.debug("No airport codes configured for METAR update")
+            return
+        
+        logger.info(f"Auto-updating METARs for: {', '.join(airport_codes)}")
+        
+        for airport in airport_codes:
+            try:
+                # Fetch METAR
+                metar_data = fetch_metar(airport)
+                if metar_data:
+                    weather_cache['metar'][airport.upper()] = metar_data
+                    logger.debug(f"Updated METAR for {airport}")
+                    
+                    # Update HA sensors if enabled
+                    if create_sensors and mqtt_connected:
+                        # Get TAF from cache for weather entity
+                        taf_data = weather_cache['taf'].get(airport.upper())
+                        
+                        # Publish state via MQTT
+                        if publish_mqtt_state(metar_data, taf_data, airport.upper()):
+                            logger.debug(f"Published MQTT states for {airport}")
+                        
+                        # Update weather entity via API
+                        if create_ha_weather_entity(metar_data, taf_data, airport.upper()):
+                            logger.debug(f"Updated HA weather entity for {airport}")
+                
+            except Exception as e:
+                logger.error(f"Error updating METAR for {airport}: {e}")
+                continue
+            
+            # Respect rate limiting (max 100 requests/min)
+            time.sleep(0.7)
+        
+        weather_cache['last_update'] = datetime.now().isoformat()
+        save_cache()
+        logger.info("METAR auto-update completed")
+    except Exception as e:
+        logger.error(f"Error in update_metars_only: {e}")
+
+
+def update_tafs_only():
+    """Update only TAF data for all configured airports"""
+    global weather_cache
+    
+    try:
+        options = read_options()
+        airport_codes = options.get('airport_codes', [])
+        include_taf = options.get('include_taf', True)
+        create_sensors = options.get('create_sensors', False)
+        
+        if not airport_codes:
+            logger.debug("No airport codes configured for TAF update")
+            return
+        
+        if not include_taf:
+            logger.debug("TAF updates disabled in configuration")
+            return
+        
+        logger.info(f"Auto-updating TAFs for: {', '.join(airport_codes)}")
+        
+        for airport in airport_codes:
+            try:
+                # Fetch TAF
+                taf_data = fetch_taf(airport)
+                if taf_data:
+                    weather_cache['taf'][airport.upper()] = taf_data
+                    logger.debug(f"Updated TAF for {airport}")
+                    
+                    # Update HA weather entity if sensors enabled
+                    if create_sensors:
+                        # Get METAR from cache for weather entity
+                        metar_data = weather_cache['metar'].get(airport.upper())
+                        
+                        if metar_data and mqtt_connected:
+                            # Publish state via MQTT
+                            if publish_mqtt_state(metar_data, taf_data, airport.upper()):
+                                logger.debug(f"Published MQTT states for {airport}")
+                            
+                            # Update weather entity via API
+                            if create_ha_weather_entity(metar_data, taf_data, airport.upper()):
+                                logger.debug(f"Updated HA weather entity for {airport}")
+                
+            except Exception as e:
+                logger.error(f"Error updating TAF for {airport}: {e}")
+                continue
+            
+            # Respect rate limiting (max 100 requests/min)
+            time.sleep(0.7)
+        
+        save_cache()
+        logger.info("TAF auto-update completed")
+    except Exception as e:
+        logger.error(f"Error in update_tafs_only: {e}")
+
+
+def schedule_metar_updates():
+    """Schedule METAR updates every 5 minutes"""
+    global metar_timer
+    
+    try:
+        # Run the update in a background thread
+        thread = threading.Thread(target=update_metars_only, daemon=True)
+        thread.start()
+    except Exception as e:
+        logger.error(f"Error scheduling METAR update: {e}")
+    
+    # Schedule next update in 5 minutes (300 seconds)
+    metar_timer = threading.Timer(300, schedule_metar_updates)
+    metar_timer.daemon = True
+    metar_timer.start()
+    logger.debug("Scheduled next METAR update in 5 minutes")
+
+
+def schedule_taf_updates():
+    """Schedule TAF updates hourly on the hour"""
+    global taf_timer
+    
+    try:
+        # Run the update in a background thread
+        thread = threading.Thread(target=update_tafs_only, daemon=True)
+        thread.start()
+    except Exception as e:
+        logger.error(f"Error scheduling TAF update: {e}")
+    
+    # Calculate seconds until next hour
+    now = datetime.now()
+    # Get the next hour by adding 1 hour and setting minutes/seconds to 0
+    next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+    
+    seconds_until_next_hour = (next_hour - now).total_seconds()
+    
+    # Schedule next update
+    taf_timer = threading.Timer(seconds_until_next_hour, schedule_taf_updates)
+    taf_timer.daemon = True
+    taf_timer.start()
+    logger.debug(f"Scheduled next TAF update in {seconds_until_next_hour/60:.1f} minutes (at {next_hour.strftime('%H:%M')})")
+
+
+def stop_auto_updates():
+    """Stop all auto-update timers"""
+    global metar_timer, taf_timer
+    
+    if metar_timer:
+        metar_timer.cancel()
+        metar_timer = None
+        logger.info("Stopped METAR auto-updates")
+    
+    if taf_timer:
+        taf_timer.cancel()
+        taf_timer = None
+        logger.info("Stopped TAF auto-updates")
+
+
 def update_weather_data():
     """Update weather data for all configured airports"""
     global weather_cache
@@ -1674,6 +1843,17 @@ try:
     logger.info("Fetching initial weather data...")
     update_weather_data()
     logger.info("Initial weather data updated")
+    
+    # Start auto-update schedulers
+    logger.info("Starting automatic update schedulers...")
+    logger.info("  METAR: Every 5 minutes")
+    logger.info("  TAF: Hourly on the hour")
+    schedule_metar_updates()
+    schedule_taf_updates()
+    logger.info("Auto-update schedulers started")
+    
+    # Register cleanup handler
+    atexit.register(stop_auto_updates)
 except Exception as e:
     logger.error(f"Error during initialization: {e}", exc_info=True)
 
